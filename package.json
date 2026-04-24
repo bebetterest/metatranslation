@@ -1,0 +1,25 @@
+{
+  "name": "metatranslation-extension",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "npm run test:unit && npm run build",
+    "test:unit": "node --experimental-strip-types scripts/test-alignment-validation.mjs && node --experimental-strip-types scripts/test-translation-provider.mjs && node --experimental-strip-types scripts/test-dictionary-provider.mjs && node --experimental-strip-types scripts/test-settings-normalization.mjs && node --experimental-strip-types scripts/test-csv-export.mjs",
+    "package:zip": "npm run build && node scripts/package-extension.mjs",
+    "smoke:test": "node scripts/smoke-test.mjs",
+    "e2e:mock": "node scripts/e2e-mock.mjs",
+    "e2e:page": "node scripts/e2e-page-smoke.mjs",
+    "e2e:real": "node scripts/e2e-real.mjs"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.4.0",
+    "@types/chrome": "^0.1.40",
+    "@types/node": "^24.10.0",
+    "type-fest": "^4.41.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.9"
+  }
+}
