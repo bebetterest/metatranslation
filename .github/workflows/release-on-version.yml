@@ -1,0 +1,144 @@
+name: Release on package version change
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+      - .github/workflows/release-on-version.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Package and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Detect package version change
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          before="${{ github.event.before }}"
+          current_version="$(node -p "require('./package.json').version")"
+
+          if [[ -z "$current_version" ]]; then
+            echo "::error::package.json version is empty."
+            exit 1
+          fi
+
+          previous_version=""
+          package_changed="true"
+
+          if [[ ! "$before" =~ ^0+$ ]]; then
+            if git diff --quiet "$before" "$GITHUB_SHA" -- package.json; then
+              package_changed="false"
+            fi
+
+            if git cat-file -e "$before:package.json" 2>/dev/null; then
+              previous_version="$(
+                git show "$before:package.json" \
+                  | node -e "const fs = require('node:fs'); const input = fs.readFileSync(0, 'utf8'); console.log(JSON.parse(input).version || '');"
+              )"
+            fi
+          fi
+
+          version_changed="false"
+          if [[ "$package_changed" == "true" && "$current_version" != "$previous_version" ]]; then
+            version_changed="true"
+          fi
+
+          {
+            echo "current=$current_version"
+            echo "previous=$previous_version"
+            echo "changed=$version_changed"
+            echo "tag=v$current_version"
+          } >> "$GITHUB_OUTPUT"
+
+          if [[ "$version_changed" == "true" ]]; then
+            echo "Detected package version change: ${previous_version:-<none>} -> $current_version"
+          else
+            echo "package.json version did not change; skipping release."
+          fi
+
+      - name: Ensure release tag is new
+        if: steps.version.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.version.outputs.tag }}"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "::error::Release tag $tag already exists."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        if: steps.version.outputs.changed == 'true'
+        run: npm ci --cache .npm-cache
+
+      - name: Verify package-lock version
+        if: steps.version.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const pkg = require('./package.json');
+          const lock = require('./package-lock.json');
+          const rootVersion = lock.packages?.['']?.version;
+
+          if (lock.version !== pkg.version || rootVersion !== pkg.version) {
+            console.error(
+              `package-lock.json version mismatch: package=${pkg.version}, lock=${lock.version}, root=${rootVersion}`,
+            );
+            process.exit(1);
+          }
+          NODE
+
+      - name: Run unit checks
+        if: steps.version.outputs.changed == 'true'
+        run: npm run test:unit
+
+      - name: Package extension
+        if: steps.version.outputs.changed == 'true'
+        run: npm run package:zip
+
+      - name: Create GitHub release
+        if: steps.version.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.current }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="artifacts/metatranslation-$VERSION.zip"
+
+          if [[ ! -f "$archive" ]]; then
+            echo "::error::Expected archive $archive was not created."
+            exit 1
+          fi
+
+          gh release create "$TAG" "$archive" \
+            --target "$GITHUB_SHA" \
+            --title "metatranslation $VERSION" \
+            --notes "Automated release for package.json version $VERSION."

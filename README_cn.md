@@ -266,6 +266,12 @@ npm run package:zip
 
 打包脚本会重新构建扩展，并写入 `artifacts/metatranslation-<version>.zip`。生成的压缩包不要提交到 git。
 
+### 自动 GitHub Release
+
+向 `main` 推送并且 `package.json` 的 `version` 发生变化时，会运行 `Release on package version change` workflow。该 workflow 会比较前后两个 package version；当版本变化时，它会使用 `npm ci` 安装依赖，校验根 `package-lock.json` 版本，运行 `npm run test:unit`，运行 `npm run package:zip`，创建 `v<version>` tag，并发布包含 `artifacts/metatranslation-<version>.zip` 的 GitHub Release。
+
+如果 `package.json` 有变化但 `version` 值没有变化，workflow 会直接退出，不发布 release。准备 release 版本时，应保持 `package-lock.json` 同步，并确认不存在同名 `v<version>` tag。
+
 ## 隐私与安全
 
 - 被选中用于翻译的页面文本会发送到配置的 provider。
@@ -286,7 +292,8 @@ npm run package:zip
 4. 至少运行 `npm run test:unit` 和 `npm run build`。
 5. 除非已经讨论清楚取舍，不要引入 provider-specific 行为。
 6. 除非明确要求，不要添加本地启发式 alignment fallback。
-7. 保持 `dist/`、`artifacts/`、`.npm-cache/`、截图和浏览器 profile 等生成文件不被追踪。
+7. 准备 GitHub Release 时，同时 bump `package.json` 和 `package-lock.json`。
+8. 保持 `dist/`、`artifacts/`、`.npm-cache/`、截图和浏览器 profile 等生成文件不被追踪。
 
 ## 路线图
 
