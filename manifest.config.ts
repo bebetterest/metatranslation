@@ -7,8 +7,18 @@ export default defineManifest({
   version: pkg.version,
   description:
     'Injects dual-line translations into web pages with hover alignment and vocabulary recording.',
+  icons: {
+    16: 'icons/icon-16.png',
+    32: 'icons/icon-32.png',
+    48: 'icons/icon-48.png',
+    128: 'icons/icon-128.png',
+  },
   action: {
     default_title: 'Toggle metatranslation',
+    default_icon: {
+      16: 'icons/icon-16.png',
+      32: 'icons/icon-32.png',
+    },
   },
   background: {
     service_worker: 'src/background/index.ts',

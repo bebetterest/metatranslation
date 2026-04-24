@@ -85,7 +85,7 @@ const port = Number(process.env.REAL_TEST_PORT ?? 9340);
 const extensionDir = path.resolve('dist');
 const screenshotDir = path.resolve(process.env.REAL_TEST_SCREENSHOT_DIR ?? 'artifacts/e2e');
 const strictInputRecord = process.env.REAL_TEST_STRICT_INPUT_RECORD === '1';
-const tolerantProviderOutput = process.env.REAL_TEST_TOLERANT_PROVIDER_OUTPUT === '1';
+const tolerantProviderOutput = process.env.REAL_TEST_TOLERANT_PROVIDER_OUTPUT !== '0';
 
 if (!browserPath) {
   console.error('Missing BROWSER_BIN.');

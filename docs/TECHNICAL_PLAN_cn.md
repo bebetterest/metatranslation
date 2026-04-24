@@ -42,6 +42,7 @@
 - 译文节点继承源块的可见文本样式，包括字体、字号、行高、颜色和文本装饰。内联译文链接/按钮会把点击代理到原始交互元素。
 - MutationObserver 增量更新。
 - 通过 patch history 和路由监听进行 SPA 路由重新扫描。
+- tab 激活或 focused window 变化时会刷新右键菜单状态，使全局菜单项反映当前 tab，而不是上一个已翻译 tab。
 - 完整页面导航会重置手动翻译状态，使新加载文档从默认 `翻译本页` 右键菜单动作开始。
 - Background 只保留当前文档生命周期内的轻量 enabled-tab 状态，并在完整页面导航开始时清理。
 - 支持可配置 chunk size、parallel request count、adjacent context length 和 retry count 的渐进式并发翻译。默认值是 chunk size `1`、parallel requests `64`、context window chars `100`、retry count `2`。
@@ -52,7 +53,7 @@
 - 默认发送 `reasoning: { effort: "none" }`。
 - 支持 OpenRouter 兼容可选 headers。
 - 面向 Grok 的 translated-part raw alignment 协议：prompt payload 会包含 block `id`、源文、可选相邻上下文和本地生成的 `sourceSpans`，但不包含 source/target offsets。Prompt 中的 `sourceSpans` 只暴露 `id` 和 `text`；字符范围保留在扩展本地。模型输出使用只包含 `id` 和 `translatedParts[{ text, sourceSpanIds? }]` 的 blocks。扩展按 `id` 匹配输出 blocks，并使用请求侧 language hint，而不依赖模型返回 `sourceLang`。`sourceSpanIds` 始终是扁平数组，可以包含 `["s1", "s5"]` 这样的非连续 ids；单数 `sourceSpanId` 会被拒绝。这些 span 是扩展拥有的词/字符候选，不是 provider 原生分段；CJK 源文使用更小的字符级 spans，可通过相邻 ids 组合。纯标点 parts 如果意外带有模型返回的 `sourceSpanIds`，sanitization 可以忽略这些 ids。
-- Tolerant provider-output 恢复可配置且默认关闭。严格模式下，缺失、重复、意外或不匹配的 output ids 以及 alignment 不匹配仍会触发重试或诊断。容错模式下，非法 source-span 引用会作为无对齐译文文本保留，已通过的 block 不重试，重复或多余 output blocks 会被忽略，缺失或仍非法的 block 会重试到 `translationRetryCount` 耗尽。
+- Tolerant provider-output 恢复可配置且默认开启。严格模式下，缺失、重复、意外或不匹配的 output ids 以及 alignment 不匹配仍会触发重试或诊断。容错模式下，非法 source-span 引用会作为无对齐译文文本保留，已通过的 block 不重试，重复或多余 output blocks 会被忽略，缺失或仍非法的 block 会重试到 `translationRetryCount` 耗尽。
 - Provider prompt 有意保持简短：task、output JSON shape、rules、format-only examples、page metadata 和 payload。Prompt 明确说明相邻上下文只用于消歧，不能被翻译。
 - Provider prompt 中注入 few-shot 示例，覆盖直接单词映射、使用上下文消歧但不翻译上下文、自然的介词短语语序重排、自然重复目标文本、长句细粒度词/术语对齐、非连续 source-span 数组，以及 CJK 字符组合成一个词。
 - 严格对齐校验，并分别检查 source/target 真实重叠。Source ranges 由本地 source span ids 计算，包括 `["s1", "s5"]` 这类非连续数组；target ranges 由 translated part 顺序计算。为兼容旧输出，legacy offset-style 输出仍会被接受。

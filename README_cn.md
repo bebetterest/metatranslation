@@ -105,7 +105,7 @@ npm run build
 | `Parallel Requests` | `64` | content runtime 最大并发翻译请求数。 |
 | `Context Window Chars` | `100` | 用于消歧的相邻源文上下文；`0` 表示关闭相邻上下文。 |
 | `Retry Count` | `2` | 首次失败或非法模型调用后的重试次数；`0` 关闭 retry passes。 |
-| `Tolerant Provider Output` | 关闭 | 当模型 JSON 有瑕疵但可安全恢复时，保留有效文本。 |
+| `Tolerant Provider Output` | 开启 | 当模型 JSON 有瑕疵但可安全恢复时，保留有效文本；排查严格 provider 契约时可关闭。 |
 | `Dictionary Provider` | `WiktApi` | `WiktApi`、`FreeDictionaryAPI` 或 `Off`。 |
 | `WiktApi Edition` | `en` | WiktApi 查询使用的 Wiktionary edition。 |
 | `Dictionary Hover Hold (ms)` | `1000` | 鼠标从源文移动到字典弹窗时的保活窗口；`0` 表示立即关闭。 |
