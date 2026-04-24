@@ -84,8 +84,24 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   });
 });
 
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  void updateContextMenuForTabId(activeInfo.tabId).catch((error: unknown) => {
+    console.error('[metatranslation]', error);
+  });
+});
+
 chrome.tabs.onRemoved.addListener((tabId) => {
   void setTabEnabled(tabId, false).catch((error: unknown) => {
+    console.error('[metatranslation]', error);
+  });
+});
+
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) {
+    return;
+  }
+
+  void updateContextMenuForFocusedWindow(windowId).catch((error: unknown) => {
     console.error('[metatranslation]', error);
   });
 });
@@ -183,7 +199,9 @@ async function handleTabUpdated(
 
   await setTabEnabled(tabId, false);
   await updateBadge(tabId, false);
-  await updateContextMenuForTab(tab, false);
+  if (tab.active && (await isFocusedWindow(tab.windowId))) {
+    await updateContextMenuForTab(tab, false);
+  }
 }
 
 async function isTabMarkedEnabled(tabId: number): Promise<boolean> {
@@ -408,6 +426,32 @@ async function updateContextMenuForTab(
   const state = await getContextMenuState(tab, enabledOverride, settingsReadyOverride);
   await chrome.contextMenus.update(CONTEXT_MENU_ID, state);
   contextMenusApi.refresh?.();
+}
+
+async function updateContextMenuForTabId(tabId: number): Promise<void> {
+  const tab = await chrome.tabs.get(tabId);
+  await updateContextMenuForTab(tab);
+}
+
+async function updateContextMenuForFocusedWindow(windowId: number): Promise<void> {
+  const [tab] = await chrome.tabs.query({
+    active: true,
+    windowId,
+  });
+  await updateContextMenuForTab(tab);
+}
+
+async function isFocusedWindow(windowId: number | undefined): Promise<boolean> {
+  if (typeof windowId !== 'number') {
+    return false;
+  }
+
+  try {
+    const windowInfo = await chrome.windows.get(windowId);
+    return Boolean(windowInfo.focused);
+  } catch {
+    return false;
+  }
 }
 
 async function getContextMenuState(

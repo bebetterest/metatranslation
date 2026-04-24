@@ -105,7 +105,7 @@ The extension calls an OpenAI-compatible `chat/completions` endpoint. A provider
 | `Parallel Requests` | `64` | Maximum concurrent content-runtime translation requests. |
 | `Context Window Chars` | `100` | Adjacent source context sent for disambiguation; `0` disables adjacent context. |
 | `Retry Count` | `2` | Retries after the first failed or invalid model call; `0` disables retry passes. |
-| `Tolerant Provider Output` | off | Keeps valid text when imperfect model JSON can be safely recovered. |
+| `Tolerant Provider Output` | on | Keeps valid text when imperfect model JSON can be safely recovered. Turn it off for strict provider-contract debugging. |
 | `Dictionary Provider` | `WiktApi` | `WiktApi`, `FreeDictionaryAPI`, or `Off`. |
 | `WiktApi Edition` | `en` | Wiktionary edition for WiktApi lookup. |
 | `Dictionary Hover Hold (ms)` | `1000` | Keep-alive window while moving from source text to the dictionary popup; `0` closes immediately. |

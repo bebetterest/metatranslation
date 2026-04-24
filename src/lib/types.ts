@@ -29,7 +29,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   dictionaryProvider: 'wiktapi',
   dictionaryEdition: 'en',
   dictionaryHoverHoldMs: 1000,
-  tolerantProviderOutput: false,
+  tolerantProviderOutput: true,
 };
 
 export interface TranslationBlockRequest {

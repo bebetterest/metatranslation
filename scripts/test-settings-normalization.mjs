@@ -70,7 +70,7 @@ test('falls back when stored values have wrong types', () => {
   assert.equal(settings.dictionaryProvider, 'wiktapi');
   assert.equal(settings.dictionaryEdition, 'en');
   assert.equal(settings.dictionaryHoverHoldMs, 1000);
-  assert.equal(settings.tolerantProviderOutput, false);
+  assert.equal(settings.tolerantProviderOutput, true);
 });
 
 test('allows zero retry count to disable retry passes', () => {

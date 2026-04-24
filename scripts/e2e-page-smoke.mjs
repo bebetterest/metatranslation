@@ -95,7 +95,7 @@ const providerSettings = {
   dictionaryProvider: process.env.PAGE_SMOKE_DICTIONARY_PROVIDER ?? 'wiktapi',
   dictionaryEdition: process.env.PAGE_SMOKE_DICTIONARY_EDITION ?? 'en',
   dictionaryHoverHoldMs: Number(process.env.PAGE_SMOKE_DICTIONARY_HOVER_HOLD_MS ?? 1000),
-  tolerantProviderOutput: process.env.PAGE_SMOKE_TOLERANT_PROVIDER_OUTPUT === '1',
+  tolerantProviderOutput: process.env.PAGE_SMOKE_TOLERANT_PROVIDER_OUTPUT !== '0',
 };
 
 if (!browserPath) {
