@@ -266,6 +266,12 @@ npm run package:zip
 
 The package script rebuilds the extension and writes `artifacts/metatranslation-<version>.zip`. Keep generated archives out of git.
 
+### Automated GitHub Releases
+
+Pushing to `main` with a changed `package.json` `version` runs the `Release on package version change` workflow. The workflow compares the previous and current package versions; when the version changes, it installs dependencies with `npm ci`, verifies the root `package-lock.json` version, runs `npm run test:unit`, runs `npm run package:zip`, creates tag `v<version>`, and publishes a GitHub Release with `artifacts/metatranslation-<version>.zip`.
+
+If `package.json` changes but the `version` value is unchanged, the workflow exits without publishing. When bumping a release version, keep `package-lock.json` synchronized and ensure no existing `v<version>` tag already exists.
+
 ## Privacy And Security
 
 - Page text selected for translation is sent to the configured provider.
@@ -286,7 +292,8 @@ Before opening a change:
 4. Run at least `npm run test:unit` and `npm run build`.
 5. Do not introduce provider-specific behavior unless the tradeoff has been discussed.
 6. Do not add heuristic local alignment fallback unless explicitly requested.
-7. Keep generated files such as `dist/`, `artifacts/`, `.npm-cache/`, screenshots, and profiles untracked.
+7. Bump `package.json` and `package-lock.json` together when preparing a GitHub Release.
+8. Keep generated files such as `dist/`, `artifacts/`, `.npm-cache/`, screenshots, and profiles untracked.
 
 ## Roadmap
 

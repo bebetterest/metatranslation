@@ -30,6 +30,7 @@ This document tracks the technical route, current progress, validation status, r
 - Shared message and data types in `src/lib/`.
 - Options page in `src/options/`.
 - Packaging script in `scripts/package-extension.mjs`.
+- GitHub Release automation in `.github/workflows/release-on-version.yml`.
 
 ## Implemented Capabilities
 
@@ -66,6 +67,7 @@ This document tracks the technical route, current progress, validation status, r
 - IndexedDB translation cache, aggregate records, and event history. Translation cache keys include the alignment-contract version and adjacent context hash so old cached structures and context-sensitive translations do not leak into incompatible requests.
 - Options page settings, records search/sort, and UTF-8 BOM CSV export with formula-prefix neutralization.
 - Versioned zip packaging.
+- GitHub Actions release automation that detects `package.json` version changes on `main`, validates the lockfile version, runs unit checks, packages the extension, tags `v<version>`, and publishes the zip to GitHub Releases.
 - Mock provider browser E2E wrapper for full extension regression without spending real API quota.
 - Real-page smoke script that runs the extension against arbitrary live pages, using either the local mock provider or a configured real provider.
 - Open-source-oriented README structure covering status, quick start, configuration, usage, architecture, development, testing, packaging, privacy/security, contribution guidance, roadmap, and license status, with a synchronized Chinese version.
@@ -76,7 +78,7 @@ This document tracks the technical route, current progress, validation status, r
 - `npm run test:unit` passes.
 - Unit tests now cover strict whole-block rejection for any invalid alignment, translated-part output, repeated target text, non-contiguous source spans, dictionary provider URL/result parsing, generic `reasoning: { effort: "none" }` request bodies, structured-output `json_schema`, OpenRouter headers, fenced/think JSON extraction, parse-failure strict retry recovery, settings normalization, and CSV escaping.
 - Unit tests also verify the raw provider schema requires model-output block `id` plus `translatedParts[].text`, rejects `sourceLang`, singular `sourceSpanId`, and extra part fields, and that new Grok-style output avoids model-counted source or target offsets. Prompt tests verify payload blocks include `id`, payload `sourceSpans` expose only `id/text`, require the model to prefer fine-grained word/term alignments instead of whole-clause parts, keep strict id mismatches retryable, and recover tolerant output by ignoring invalid spans, missing blocks, duplicate ids, and extra blocks.
-- `npm run package:zip` produces `artifacts/metatranslation-0.1.0.zip`.
+- `npm run package:zip` produces `artifacts/metatranslation-0.1.1.zip`.
 - Real API E2E last passed with OpenRouter `https://openrouter.ai/api/v1` and `x-ai/grok-4.1-fast` before the latest `translatedParts` contract update; rerun it before release if real-provider confidence is required.
 - `npm run e2e:mock` passes in a Chrome for Testing environment; it covers progressive rendering, internal second-line rendering for flex toolbar links/buttons, interactive proxy clicks, translated-node repositioning after DOM moves, DOM-mutation cancellation of pending hover records, one record per continuous source-side span dwell, source hover recording, input-control source hover recording, disable cleanup, and translation-state reset after a full-page navigation.
 - `npm run e2e:page` has been exercised against the Reddit Bitter Lesson page with the local mock provider; the page exposes extractable candidates and renders injected translation nodes after the Reddit verification redirect completes.
@@ -92,6 +94,7 @@ This document tracks the technical route, current progress, validation status, r
 - Geometry-based text offsets for input buttons are approximate because browser inputs do not expose per-character text ranges.
 - Conservative extraction skips some mixed or highly interactive content by design.
 - Browser extension automation can be flaky across Chrome versions because of MV3 service worker lifecycle and extension-loading policy changes.
+- Automated GitHub Releases depend on repository Actions having `contents: write` permission and on each package version mapping to a unique `v<version>` tag.
 - Some sites show temporary verification pages before the real document. If translation was enabled on the temporary page, the final document now starts untranslated and the user should trigger translation again after the real content loads.
 - Real providers can still produce unusable alignment output. The runtime now surfaces this as skipped/failed counts, and the v1 policy remains to skip invalid or ambiguous blocks rather than render unaligned text.
 

@@ -30,6 +30,7 @@
 - 共享消息和数据类型位于 `src/lib/`。
 - Options 页面位于 `src/options/`。
 - 打包脚本位于 `scripts/package-extension.mjs`。
+- GitHub Release 自动化位于 `.github/workflows/release-on-version.yml`。
 
 ## 已实现能力
 
@@ -66,6 +67,7 @@
 - IndexedDB 翻译缓存、聚合记录和事件历史。翻译缓存键包含 alignment-contract version 和 adjacent context hash，避免旧缓存结构和上下文敏感译文流入不兼容请求。
 - Options 页面设置、记录搜索/排序和带 UTF-8 BOM 且中和公式前缀的 CSV 导出。
 - 版本化 zip 打包。
+- GitHub Actions release 自动化会检测 `main` 上 `package.json` 的 version 变化，校验 lockfile 版本，运行单元检查，打包扩展，创建 `v<version>` tag，并把 zip 发布到 GitHub Releases。
 - Mock provider 浏览器 E2E 包装脚本，可在不消耗真实 API quota 的情况下进行完整扩展回归。
 - 真实页面 smoke 脚本，可在任意 live page 上运行扩展，并使用本地 mock provider 或配置的真实 provider。
 - 面向开源的 README 结构，覆盖 status、quick start、configuration、usage、architecture、development、testing、packaging、privacy/security、contribution guidance、roadmap 和 license status，并维护同步中文版。
@@ -76,7 +78,7 @@
 - `npm run test:unit` 通过。
 - 单元测试现在覆盖任一非法 alignment 都整块拒绝、translated-part 输出、重复目标文本、非连续 source spans、字典 provider URL/result 解析、通用 `reasoning: { effort: "none" }` 请求体、structured-output `json_schema`、OpenRouter header、fenced/think JSON 提取、解析失败后的严格重试恢复、设置归一化以及 CSV 转义。
 - 单元测试也验证 raw provider schema 在模型输出 block 层要求 `id` 和 `translatedParts[].text`、拒绝 `sourceLang`、单数 `sourceSpanId` 和额外 part 字段，并确认新的 Grok 风格输出不再依赖模型计算 source 或 target offsets。Prompt 测试会验证 payload blocks 包含 `id`，payload `sourceSpans` 只暴露 `id/text`，要求模型优先使用细粒度词/术语对齐而不是整句或整从句 part，保持严格模式下 id mismatch 可重试，并通过忽略非法 spans、缺失 blocks、重复 ids 和多余 blocks 来恢复容错输出。
-- `npm run package:zip` 会生成 `artifacts/metatranslation-0.1.0.zip`。
+- `npm run package:zip` 会生成 `artifacts/metatranslation-0.1.1.zip`。
 - 真实 API E2E 在最新 `translatedParts` 契约更新前曾使用 OpenRouter `https://openrouter.ai/api/v1` 和 `x-ai/grok-4.1-fast` 跑通过；发布前如需真实 provider 信心，需要重新运行。
 - `npm run e2e:mock` 已在 Chrome for Testing 环境中通过；它覆盖渐进式渲染、flex toolbar 链接/按钮的内部第二行渲染、交互代理点击、DOM 移动后的译文重定位、DOM mutation 取消待触发 hover 记录、同一次连续源文侧 span 悬停只记录一次、源文 hover 记录、input 控件源文 hover 记录、关闭清理，以及完整页面导航后的翻译状态重置。
 - `npm run e2e:page` 已使用本地 mock provider 在 Reddit Bitter Lesson 页面上跑过；该页面在 Reddit 验证跳转完成后存在可提取候选块，并能渲染注入的译文节点。
@@ -92,6 +94,7 @@
 - Input button 的几何文本 offset 是近似值，因为浏览器 input 不暴露逐字符 text range。
 - 保守提取会按设计跳过部分混排或强交互内容。
 - 浏览器扩展自动化可能因 Chrome 版本、MV3 service worker 生命周期和扩展加载策略变化而波动。
+- 自动 GitHub Releases 依赖仓库 Actions 拥有 `contents: write` 权限，并且每个 package version 都对应唯一的 `v<version>` tag。
 - 一些网站会先显示临时验证页再进入真实文档。如果在临时页面启用了翻译，最终文档现在会以未翻译状态开始，用户应在真实内容加载后再次触发翻译。
 - 真实 provider 仍可能产出不可用的 alignment。runtime 现在会把这种情况显示为 skipped/failed 数量，但 v1 策略仍然是跳过非法或模糊 block，而不是渲染无对齐文本。
 

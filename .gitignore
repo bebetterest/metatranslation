@@ -7,11 +7,7 @@ dist/
 artifacts/
 *.crx
 
-# Local agent instructions
-AGENTS.md
-AGENTS_cn.md
-agents.md
-agents_cn.md
+# Local agent scratch files
 .agents/
 
 # Browser automation output
