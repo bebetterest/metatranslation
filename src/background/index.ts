@@ -6,16 +6,17 @@ import type {
   TranslationRequest,
   TranslationResultBlock,
 } from '../lib/types';
+import { getUiMessage } from '../lib/i18n';
 import { getSettings, saveSettings } from '../lib/settings';
 import { getCachedTranslation, putCachedTranslation, queryWordRecords, recordWordHit } from './db';
 import { lookupDictionary } from './dictionary';
 import { translateBlocks } from './openai';
 
 const CONTEXT_MENU_ID = 'toggle-dual-line-translation';
-const CONTEXT_MENU_DEFAULT_TITLE = '翻译本页';
-const CONTEXT_MENU_DISABLE_TITLE = '关闭翻译';
-const CONTEXT_MENU_CONFIG_TITLE = '重试（请确认已保存配置）';
-const CONTEXT_MENU_UNAVAILABLE_TITLE = '当前页面不可翻译';
+const CONTEXT_MENU_DEFAULT_TITLE = getUiMessage('contextMenuTranslatePage');
+const CONTEXT_MENU_DISABLE_TITLE = getUiMessage('contextMenuDisableTranslation');
+const CONTEXT_MENU_CONFIG_TITLE = getUiMessage('contextMenuConfigRequired');
+const CONTEXT_MENU_UNAVAILABLE_TITLE = getUiMessage('contextMenuUnavailable');
 const TRANSLATION_CACHE_SCHEMA_VERSION = 'alignment-span-v3-context';
 const ENABLED_TABS_STORAGE_KEY = 'enabledTabIds';
 const contextMenusApi = chrome.contextMenus as typeof chrome.contextMenus & {

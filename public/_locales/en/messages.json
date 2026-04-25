@@ -1,0 +1,350 @@
+{
+  "extensionName": {
+    "message": "metatranslation",
+    "description": "Extension name."
+  },
+  "extensionDescription": {
+    "message": "Injects dual-line translations into web pages with hover alignment and vocabulary recording.",
+    "description": "Extension description."
+  },
+  "actionDefaultTitle": {
+    "message": "Toggle metatranslation",
+    "description": "Browser action tooltip."
+  },
+  "contextMenuTranslatePage": {
+    "message": "Translate this page",
+    "description": "Context menu item shown when translation is off."
+  },
+  "contextMenuDisableTranslation": {
+    "message": "Turn off translation",
+    "description": "Context menu item shown when translation is on."
+  },
+  "contextMenuConfigRequired": {
+    "message": "Retry after saving settings",
+    "description": "Context menu item shown when provider settings are incomplete."
+  },
+  "contextMenuUnavailable": {
+    "message": "This page cannot be translated",
+    "description": "Context menu item shown on unsupported URLs."
+  },
+  "optionsPageTitle": {
+    "message": "metatranslation Options",
+    "description": "Options page browser title."
+  },
+  "optionsHeroTitle": {
+    "message": "Dual-line translation and vocabulary records",
+    "description": "Options page main heading."
+  },
+  "optionsHeroSubtitle": {
+    "message": "Configure the OpenAI-compatible translation endpoint, review vocabulary frequency, search by word or URL, and export CSV.",
+    "description": "Options page subtitle."
+  },
+  "settingsPanelTitle": {
+    "message": "Translation Settings",
+    "description": "Settings panel title."
+  },
+  "settingsPanelDescription": {
+    "message": "Requests run concurrently by single text block by default, and each completed block is rendered immediately. You can tune chunk size and concurrency.",
+    "description": "Settings panel description."
+  },
+  "providerSectionTitle": {
+    "message": "Provider",
+    "description": "Provider settings section title."
+  },
+  "providerSectionDescription": {
+    "message": "Configure the OpenAI-compatible endpoint used for translation and alignment.",
+    "description": "Provider settings section description."
+  },
+  "baseUrlLabel": {
+    "message": "Base URL",
+    "description": "Base URL setting label."
+  },
+  "baseUrlHelp": {
+    "message": "Provider root URL. Trailing slashes are removed and /chat/completions is appended automatically.",
+    "description": "Base URL setting help text."
+  },
+  "apiKeyLabel": {
+    "message": "API Key",
+    "description": "API key setting label."
+  },
+  "apiKeyHelp": {
+    "message": "Stored locally in chrome.storage.local and sent only to the configured provider.",
+    "description": "API key setting help text."
+  },
+  "modelLabel": {
+    "message": "Model",
+    "description": "Model setting label."
+  },
+  "modelHelp": {
+    "message": "Provider model id used to translate text and return source-span alignment.",
+    "description": "Model setting help text."
+  },
+  "targetLanguageLabel": {
+    "message": "Target Language",
+    "description": "Target language setting label."
+  },
+  "targetLanguageHelp": {
+    "message": "Default is Chinese: zh-CN. This controls translation output, not the extension UI language.",
+    "description": "Target language setting help text."
+  },
+  "translationFlowTitle": {
+    "message": "Translation Flow",
+    "description": "Translation flow settings section title."
+  },
+  "translationFlowDescription": {
+    "message": "Control request batching, retries, context, and tolerant handling of imperfect model output.",
+    "description": "Translation flow settings section description."
+  },
+  "timeoutLabel": {
+    "message": "Timeout (ms)",
+    "description": "Timeout setting label."
+  },
+  "timeoutHelp": {
+    "message": "Maximum time to wait for each provider request before treating it as failed.",
+    "description": "Timeout setting help text."
+  },
+  "requestChunkSizeLabel": {
+    "message": "Request Chunk Size",
+    "description": "Request chunk size setting label."
+  },
+  "requestChunkSizeHelp": {
+    "message": "Number of page text blocks sent in one provider request. Default is 1 for progressive rendering.",
+    "description": "Request chunk size setting help text."
+  },
+  "parallelRequestsLabel": {
+    "message": "Parallel Requests",
+    "description": "Parallel requests setting label."
+  },
+  "parallelRequestsHelp": {
+    "message": "Maximum concurrent translation requests from the content runtime. Default is 64.",
+    "description": "Parallel requests setting help text."
+  },
+  "contextWindowCharsLabel": {
+    "message": "Context Window Chars",
+    "description": "Context window setting label."
+  },
+  "contextWindowCharsHelp": {
+    "message": "Adjacent characters sent before and after each block for disambiguation only. Default is 100; 0 disables context.",
+    "description": "Context window setting help text."
+  },
+  "retryCountLabel": {
+    "message": "Retry Count",
+    "description": "Retry count setting label."
+  },
+  "retryCountHelp": {
+    "message": "Number of retries after the first model call. Default is 2; 0 disables output retries.",
+    "description": "Retry count setting help text."
+  },
+  "tolerantProviderOutputLabel": {
+    "message": "Tolerant Provider Output",
+    "description": "Tolerant provider output setting label."
+  },
+  "tolerantProviderOutputHelp": {
+    "message": "When enabled, invalid sourceSpanIds become unaligned text, accepted blocks are kept, and missing or still-invalid blocks retry according to Retry Count.",
+    "description": "Tolerant provider output setting help text."
+  },
+  "dictionarySectionTitle": {
+    "message": "Dictionary",
+    "description": "Dictionary settings section title."
+  },
+  "dictionarySectionDescription": {
+    "message": "Configure the source-hover dictionary popup shown for aligned source spans.",
+    "description": "Dictionary settings section description."
+  },
+  "dictionaryProviderLabel": {
+    "message": "Dictionary Provider",
+    "description": "Dictionary provider setting label."
+  },
+  "dictionaryProviderOff": {
+    "message": "Off",
+    "description": "Off option for dictionary provider."
+  },
+  "dictionaryProviderHelp": {
+    "message": "Source-hover dictionary provider. Results are fetched in the background and cached locally.",
+    "description": "Dictionary provider setting help text."
+  },
+  "dictionaryEditionLabel": {
+    "message": "WiktApi Edition",
+    "description": "Dictionary edition setting label."
+  },
+  "dictionaryEditionHelp": {
+    "message": "Wiktionary edition used by WiktApi, for example en, fr, de. Default is en.",
+    "description": "Dictionary edition setting help text."
+  },
+  "dictionaryHoverHoldLabel": {
+    "message": "Dictionary Hover Hold (ms)",
+    "description": "Dictionary hover hold setting label."
+  },
+  "dictionaryHoverHoldHelp": {
+    "message": "How long the dictionary stays open while moving from source text to the popup. Default is 1000ms; 0 closes immediately.",
+    "description": "Dictionary hover hold setting help text."
+  },
+  "saveSettingsButton": {
+    "message": "Save Settings",
+    "description": "Save settings button."
+  },
+  "recordsPanelTitle": {
+    "message": "Vocabulary Records",
+    "description": "Records panel title."
+  },
+  "recordsPanelDescription": {
+    "message": "Hover a source word for more than 2 seconds to save it automatically. Sort by frequency or recent hits.",
+    "description": "Records panel description."
+  },
+  "recordsSearchPlaceholder": {
+    "message": "Search word, URL, or sentence",
+    "description": "Records search placeholder."
+  },
+  "sortRecent": {
+    "message": "Recent",
+    "description": "Recent sort option."
+  },
+  "sortFrequency": {
+    "message": "Frequency",
+    "description": "Frequency sort option."
+  },
+  "refreshButton": {
+    "message": "Refresh",
+    "description": "Refresh records button."
+  },
+  "exportCsvButton": {
+    "message": "Export CSV",
+    "description": "Export CSV button."
+  },
+  "recordCount": {
+    "message": "Records: $1",
+    "description": "Record count summary."
+  },
+  "recordsLoading": {
+    "message": "Loading records...",
+    "description": "Records loading status."
+  },
+  "settingsLoading": {
+    "message": "Loading settings...",
+    "description": "Settings loading status."
+  },
+  "settingsSaving": {
+    "message": "Saving...",
+    "description": "Settings saving status."
+  },
+  "settingsSaved": {
+    "message": "Settings saved",
+    "description": "Settings saved status."
+  },
+  "recordsEmpty": {
+    "message": "No matching records.",
+    "description": "Empty records table message."
+  },
+  "recordsExportEmpty": {
+    "message": "No records to export",
+    "description": "Empty export status."
+  },
+  "recordsExported": {
+    "message": "CSV exported",
+    "description": "Export complete status."
+  },
+  "unknownError": {
+    "message": "Unknown error",
+    "description": "Unknown error fallback."
+  },
+  "recordWordHeader": {
+    "message": "Word",
+    "description": "Records table word header."
+  },
+  "recordCountHeader": {
+    "message": "Count",
+    "description": "Records table count header."
+  },
+  "recordSourceHeader": {
+    "message": "Source",
+    "description": "Records table source language header."
+  },
+  "recordLastSeenHeader": {
+    "message": "Last Seen",
+    "description": "Records table last seen header."
+  },
+  "recordUrlHeader": {
+    "message": "URL",
+    "description": "Records table URL header."
+  },
+  "recordSourceSentenceHeader": {
+    "message": "Source Sentence",
+    "description": "Records table source sentence header."
+  },
+  "recordTranslationHeader": {
+    "message": "Translation",
+    "description": "Records table translation header."
+  },
+  "runtimeToggleFailed": {
+    "message": "Toggle failed.",
+    "description": "Content runtime toggle error fallback."
+  },
+  "statusScanningPage": {
+    "message": "Scanning page...",
+    "description": "In-page status while scanning."
+  },
+  "statusFoundBlocksTranslating": {
+    "message": "Found $1 text blocks. Translating...",
+    "description": "In-page status after discovering text blocks."
+  },
+  "statusNoBlocks": {
+    "message": "No safe text blocks found on this page.",
+    "description": "In-page status when no translatable blocks exist."
+  },
+  "statusTranslatingPrefix": {
+    "message": "Translating...",
+    "description": "In-page translating status prefix."
+  },
+  "statusTranslationUpdatedPrefix": {
+    "message": "Translation updated",
+    "description": "In-page updated status prefix."
+  },
+  "statusTranslationErrorPrefix": {
+    "message": "Translation error",
+    "description": "In-page error status prefix."
+  },
+  "statusRenderedCount": {
+    "message": "$1/$2 rendered",
+    "description": "Rendered block count."
+  },
+  "statusSkippedInvalid": {
+    "message": "$1 skipped by invalid or empty model output",
+    "description": "Skipped invalid block count."
+  },
+  "statusFailedCount": {
+    "message": "$1 failed",
+    "description": "Failed block count."
+  },
+  "statusLastError": {
+    "message": "Last error: $1",
+    "description": "Latest in-page status error."
+  },
+  "dictionaryLoading": {
+    "message": "Loading dictionary...",
+    "description": "Dictionary loading status."
+  },
+  "dictionaryEmpty": {
+    "message": "No dictionary entry found.",
+    "description": "Empty dictionary lookup message."
+  },
+  "dictionaryLookupFailed": {
+    "message": "Dictionary lookup failed.",
+    "description": "Dictionary lookup failure body."
+  },
+  "dictionaryTitle": {
+    "message": "Dictionary",
+    "description": "Dictionary generic title."
+  },
+  "dictionaryLookupFailedTitle": {
+    "message": "Lookup failed",
+    "description": "Dictionary lookup failure title."
+  },
+  "dictionaryTranslationsLabel": {
+    "message": "Translations: $1",
+    "description": "Dictionary translations label."
+  },
+  "dictionaryOpenDictionary": {
+    "message": "Open dictionary",
+    "description": "Dictionary source link."
+  }
+}

@@ -46,6 +46,7 @@ This document tracks the technical route, current progress, validation status, r
 - Context-menu state is refreshed when tabs activate or focused windows change, so the global menu item reflects the current tab rather than the last translated tab.
 - Full-page navigation resets manual translation state so a newly loaded document starts with the default `翻译本页` context-menu action.
 - The background keeps only lightweight enabled-tab state for the current document lifecycle and clears it when full-page navigation starts.
+- Chrome i18n `_locales` provide English and Simplified Chinese UI strings for the manifest, action title, context menu, options page, in-page diagnostics, and dictionary popup. UI language follows the browser UI locale and remains independent of the configured translation `targetLang`.
 - Progressive concurrent translation with configurable chunk size, parallel request count, adjacent context length, and retry count. Defaults are chunk size `1`, parallel requests `64`, context window chars `100`, and retry count `2`.
 - Configurable target language defaults to `zh-CN` for Chinese, and the configured value is injected into provider prompts as the authoritative target language with a human-readable description when known.
 - OpenAI-compatible `chat/completions` requests.
@@ -65,7 +66,7 @@ This document tracks the technical route, current progress, validation status, r
 - Geometry-based hover support for `input[type=button|submit|reset]`.
 - 2-second source hover vocabulary recording.
 - IndexedDB translation cache, aggregate records, and event history. Translation cache keys include the alignment-contract version and adjacent context hash so old cached structures and context-sensitive translations do not leak into incompatible requests.
-- Options page settings, records search/sort, and UTF-8 BOM CSV export with formula-prefix neutralization.
+- Options page settings, localized helper text, records search/sort, and UTF-8 BOM CSV export with formula-prefix neutralization.
 - Versioned zip packaging.
 - GitHub Actions release automation that detects `package.json` version changes on `main`, validates the lockfile version, runs unit checks, packages the extension, tags `v<version>`, and publishes the zip to GitHub Releases.
 - Mock provider browser E2E wrapper for full extension regression without spending real API quota.
@@ -76,11 +77,11 @@ This document tracks the technical route, current progress, validation status, r
 
 ## Validation Status
 
-- `npm run build` passes.
+- `npm run build` passes, including the English and Simplified Chinese Chrome i18n locale bundles.
 - `npm run test:unit` passes.
 - `npm test` passes.
 - `npm audit --cache .npm-cache` reports 0 vulnerabilities after the Rollup override.
-- Unit tests now cover strict whole-block rejection for any invalid alignment, translated-part output, repeated target text, non-contiguous source spans, dictionary provider URL/result parsing, generic `reasoning: { effort: "none" }` request bodies, structured-output `json_schema`, OpenRouter headers, fenced/think JSON extraction, parse-failure strict retry recovery, settings normalization, alignment coverage diagnostics, fine-grained provider-output failure counts, and CSV escaping.
+- Unit tests now cover strict whole-block rejection for any invalid alignment, translated-part output, repeated target text, non-contiguous source spans, dictionary provider URL/result parsing, generic `reasoning: { effort: "none" }` request bodies, structured-output `json_schema`, OpenRouter headers, fenced/think JSON extraction, parse-failure strict retry recovery, settings normalization, alignment coverage diagnostics, fine-grained provider-output failure counts, CSV escaping, and i18n locale completeness.
 - Unit tests also verify the raw provider schema requires model-output block `id` plus `translatedParts[].text`, rejects `sourceLang`, singular `sourceSpanId`, and extra part fields, and that new Grok-style output avoids model-counted source or target offsets. Prompt tests verify payload blocks include `id`, payload `sourceSpans` expose only `id/text`, treat webpage text/context/page URL as untrusted data rather than instructions, send only three multilingual examples, require the model to prefer fine-grained word/term alignments instead of whole-clause parts, keep strict id mismatches retryable, and recover tolerant output by ignoring invalid spans, missing blocks, duplicate ids, and extra blocks.
 - `npm run package:zip` produces `artifacts/metatranslation-0.1.2.zip`.
 - Real API E2E last passed with OpenRouter `https://openrouter.ai/api/v1` and `x-ai/grok-4.1-fast` before the latest `translatedParts` contract update; rerun it before release if real-provider confidence is required.
