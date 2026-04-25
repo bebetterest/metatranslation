@@ -39,7 +39,7 @@ export function normalizeSettings(value: Partial<ExtensionSettings> | Record<str
       10,
     ),
     dictionaryProvider: normalizeDictionaryProvider(value.dictionaryProvider, DEFAULT_SETTINGS.dictionaryProvider),
-    dictionaryEdition: normalizeString(value.dictionaryEdition, DEFAULT_SETTINGS.dictionaryEdition),
+    dictionaryEdition: DEFAULT_SETTINGS.dictionaryEdition,
     dictionaryHoverHoldMs: normalizeNonNegativeBoundedInteger(
       value.dictionaryHoverHoldMs,
       DEFAULT_SETTINGS.dictionaryHoverHoldMs,

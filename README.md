@@ -74,7 +74,7 @@ Current release posture:
 | Rendering | Source DOM text remains in place. Translation nodes inherit source text style and are removable on disable. Dense flex/grid and overlay labels use internal second-line rendering. |
 | Translation | OpenAI-compatible provider calls with structured JSON schema output, configurable target language, context window, concurrency, chunk size, timeout, and retry count. |
 | Alignment | The model returns `translatedParts[].sourceSpanIds`; the extension derives runtime source and target ranges locally. Strict and tolerant validation modes are supported. |
-| Dictionary | Source-hover dictionary popup can use WiktApi, FreeDictionaryAPI, or be turned off. Dictionary results are normalized and cached locally. |
+| Dictionary | Source-hover dictionary popup can use WiktApi, FreeDictionaryAPI, or be turned off. Dictionary lookup keeps original word casing, queries Latin words in English before all-language fallback, ranks all-language results by likely source language, and caches normalized results locally. |
 | Records | Stable 2-second source-side hover records vocabulary hits, aggregate counts, last seen context, URL, and event history. |
 | Export | Records CSV export includes a UTF-8 BOM and neutralizes spreadsheet formula prefixes from untrusted page text. |
 | Diagnostics | In-page status panel plus background diagnostics for skipped blocks, failed chunks, provider-output failure categories, and alignment coverage. |
@@ -138,7 +138,6 @@ The extension UI language follows Chrome or Edge's UI language through `_locales
 | `Retry Count` | `2` | Retries after the first failed or invalid model call; `0` disables retry passes. |
 | `Tolerant Provider Output` | on | Keeps valid text when imperfect model JSON can be safely recovered. Turn it off for strict provider-contract debugging. |
 | `Dictionary Provider` | `WiktApi` | `WiktApi`, `FreeDictionaryAPI`, or `Off`. |
-| `WiktApi Edition` | `en` | Wiktionary edition for WiktApi lookup. |
 | `Dictionary Hover Hold (ms)` | `1000` | Keep-alive window while moving from source text to the dictionary popup; `0` closes immediately. |
 
 Provider request details:

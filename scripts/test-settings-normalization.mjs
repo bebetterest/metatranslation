@@ -28,7 +28,7 @@ test('normalizes dirty settings from storage', () => {
   assert.equal(settings.contextWindowChars, 1000);
   assert.equal(settings.translationRetryCount, 10);
   assert.equal(settings.dictionaryProvider, 'freedictionaryapi');
-  assert.equal(settings.dictionaryEdition, 'fr');
+  assert.equal(settings.dictionaryEdition, 'en');
   assert.equal(settings.dictionaryHoverHoldMs, 5000);
   assert.equal(settings.tolerantProviderOutput, true);
 });

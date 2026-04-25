@@ -61,7 +61,7 @@
 - 严格对齐校验，并分别检查 source/target 真实重叠。Source ranges 由本地 source span ids 计算，包括 `["s1", "s5"]` 这类非连续数组；target ranges 由 translated part 顺序计算。为兼容旧输出，legacy offset-style 输出仍会被接受。
 - 聚焦 alignment 校验回归脚本，覆盖 translated parts、重排、overlap、source-span anchored 输出、相邻 CJK span 组合、重复目标文本、非连续 source spans、可恢复 legacy offset 修复、不可恢复 ranges、重复 alignment id 和模糊文本修复。
 - 通过 overlay 矩形进行 source/target 悬浮高亮。
-- 源文侧悬浮字典弹窗，provider 可配置为 `WiktApi`、`FreeDictionaryAPI` 或 `Off`，弹窗保活窗口可配置且默认 `1000ms`。字典查询在 background service worker 中执行，结果缓存在 IndexedDB，并向 content tooltip 提供释义、发音、例句、翻译、attribution 和 source links。
+- 源文侧悬浮字典弹窗，provider 可配置为 `WiktApi`、`FreeDictionaryAPI` 或 `Off`，弹窗保活窗口可配置且默认 `1000ms`。WiktApi edition 仍作为兼容存储的内部字段保留，但不再暴露在 Options 页面，并会归一化为默认英文 edition。字典查询在 background service worker 中执行，会先保留查询词大小写再小写回退；拉丁词先查英文再回退到全语言查询；全语言结果会按可能的源语言排序，但不会把页面语言提示当作硬过滤条件；结果缓存在 IndexedDB，并向 content tooltip 提供释义、发音、例句、翻译、attribution 和 source links。
 - 页面内诊断状态浮层，用于显示翻译进度、跳过 block 数、失败 chunk、invalid/empty sanitized blocks、id mismatches 和最近 provider 错误。Background diagnostics 还会包含更细的 provider-output failure counts，以及 accepted provider blocks 的聚合 alignment coverage。
 - 对 `input[type=button|submit|reset]` 支持基于几何位置的悬浮。
 - 源文稳定悬浮 2 秒后记录词汇。
@@ -81,9 +81,9 @@
 - `npm run test:unit` 通过。
 - `npm test` 通过。
 - `npm audit --cache .npm-cache` 在 Rollup override 后报告 0 个漏洞。
-- 单元测试现在覆盖任一非法 alignment 都整块拒绝、translated-part 输出、重复目标文本、非连续 source spans、字典 provider URL/result 解析、通用 `reasoning: { effort: "none" }` 请求体、structured-output `json_schema`、OpenRouter header、fenced/think JSON 提取、解析失败后的严格重试恢复、设置归一化、alignment coverage diagnostics、更细的 provider-output failure counts、CSV 转义，以及 i18n locale 完整性。
+- 单元测试现在覆盖任一非法 alignment 都整块拒绝、translated-part 输出、重复目标文本、非连续 source spans、字典 provider URL/result 解析、字典语言/大小写回退和全语言排序、通用 `reasoning: { effort: "none" }` 请求体、structured-output `json_schema`、OpenRouter header、fenced/think JSON 提取、解析失败后的严格重试恢复、设置归一化、alignment coverage diagnostics、更细的 provider-output failure counts、CSV 转义，以及 i18n locale 完整性。
 - 单元测试也验证 raw provider schema 在模型输出 block 层要求 `id` 和 `translatedParts[].text`、拒绝 `sourceLang`、单数 `sourceSpanId` 和额外 part 字段，并确认新的 Grok 风格输出不再依赖模型计算 source 或 target offsets。Prompt 测试会验证 payload blocks 包含 `id`，payload `sourceSpans` 只暴露 `id/text`，把网页 text/context/page URL 当作不可信数据而不是指令，只发送三个多语言示例，要求模型优先使用细粒度词/术语对齐而不是整句或整从句 part，保持严格模式下 id mismatch 可重试，并通过忽略非法 spans、缺失 blocks、重复 ids 和多余 blocks 来恢复容错输出。
-- `npm run package:zip` 会生成 `artifacts/metatranslation-0.1.2.zip`。
+- `npm run package:zip` 会生成 `artifacts/metatranslation-0.1.3.zip`。
 - 真实 API E2E 在最新 `translatedParts` 契约更新前曾使用 OpenRouter `https://openrouter.ai/api/v1` 和 `x-ai/grok-4.1-fast` 跑通过；发布前如需真实 provider 信心，需要重新运行。
 - `npm run e2e:mock` 已在 Chrome for Testing 环境中通过；它覆盖渐进式渲染、flex toolbar 链接/按钮的内部第二行渲染、交互代理点击、DOM 移动后的译文重定位、DOM mutation 取消待触发 hover 记录、同一次连续源文侧 span 悬停只记录一次、源文 hover 记录、input 控件源文 hover 记录、关闭清理，以及完整页面导航后的翻译状态重置。
 - `npm run e2e:page` 已使用本地 mock provider 在 Reddit Bitter Lesson 页面上跑过；该页面在 Reddit 验证跳转完成后存在可提取候选块，并能渲染注入的译文节点。

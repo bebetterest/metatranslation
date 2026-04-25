@@ -163,14 +163,6 @@
     "message": "源文悬浮字典 provider。结果由 background 获取并本地缓存。",
     "description": "字典 provider 设置说明。"
   },
-  "dictionaryEditionLabel": {
-    "message": "WiktApi Edition",
-    "description": "字典版本设置标签。"
-  },
-  "dictionaryEditionHelp": {
-    "message": "WiktApi 使用的 Wiktionary edition，例如 en、fr、de。默认 en。",
-    "description": "字典版本设置说明。"
-  },
   "dictionaryHoverHoldLabel": {
     "message": "Dictionary Hover Hold (ms)",
     "description": "字典悬浮保活设置标签。"

@@ -8,7 +8,13 @@ import type {
   SettingsSaveResponse,
 } from '../lib/messages';
 import { getUiLocale, getUiMessage } from '../lib/i18n';
-import type { ExtensionSettings, RecordSortMode, RecordsExportRow, WordRecord } from '../lib/types';
+import {
+  DEFAULT_SETTINGS,
+  type ExtensionSettings,
+  type RecordSortMode,
+  type RecordsExportRow,
+  type WordRecord,
+} from '../lib/types';
 
 const settingsForm = getElement<HTMLFormElement>('settings-form');
 const searchInput = getElement<HTMLInputElement>('search');
@@ -31,7 +37,6 @@ const contextWindowCharsInput = getElement<HTMLInputElement>('context-window-cha
 const translationRetryCountInput = getElement<HTMLInputElement>('translation-retry-count');
 const tolerantProviderOutputInput = getElement<HTMLInputElement>('tolerant-provider-output');
 const dictionaryProviderInput = getElement<HTMLSelectElement>('dictionary-provider');
-const dictionaryEditionInput = getElement<HTMLInputElement>('dictionary-edition');
 const dictionaryHoverHoldMsInput = getElement<HTMLInputElement>('dictionary-hover-hold-ms');
 
 const uiLocale = getUiLocale();
@@ -110,7 +115,7 @@ async function saveSettings(): Promise<void> {
       contextWindowChars: Number(contextWindowCharsInput.value),
       translationRetryCount: Number(translationRetryCountInput.value),
       dictionaryProvider: dictionaryProviderInput.value as ExtensionSettings['dictionaryProvider'],
-      dictionaryEdition: dictionaryEditionInput.value.trim(),
+      dictionaryEdition: DEFAULT_SETTINGS.dictionaryEdition,
       dictionaryHoverHoldMs: Number(dictionaryHoverHoldMsInput.value),
       tolerantProviderOutput: tolerantProviderOutputInput.checked,
     };
@@ -158,7 +163,6 @@ function fillSettings(settings: ExtensionSettings): void {
   contextWindowCharsInput.value = String(settings.contextWindowChars);
   translationRetryCountInput.value = String(settings.translationRetryCount);
   dictionaryProviderInput.value = settings.dictionaryProvider;
-  dictionaryEditionInput.value = settings.dictionaryEdition;
   dictionaryHoverHoldMsInput.value = String(settings.dictionaryHoverHoldMs);
   tolerantProviderOutputInput.checked = settings.tolerantProviderOutput;
 }

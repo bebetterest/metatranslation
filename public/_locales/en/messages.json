@@ -163,14 +163,6 @@
     "message": "Source-hover dictionary provider. Results are fetched in the background and cached locally.",
     "description": "Dictionary provider setting help text."
   },
-  "dictionaryEditionLabel": {
-    "message": "WiktApi Edition",
-    "description": "Dictionary edition setting label."
-  },
-  "dictionaryEditionHelp": {
-    "message": "Wiktionary edition used by WiktApi, for example en, fr, de. Default is en.",
-    "description": "Dictionary edition setting help text."
-  },
   "dictionaryHoverHoldLabel": {
     "message": "Dictionary Hover Hold (ms)",
     "description": "Dictionary hover hold setting label."

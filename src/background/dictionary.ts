@@ -7,35 +7,43 @@ import type {
 } from '../lib/types';
 import { getCachedDictionary, putCachedDictionary } from './db.ts';
 
-const DICTIONARY_CACHE_SCHEMA_VERSION = 'dictionary-v1';
+const DICTIONARY_CACHE_SCHEMA_VERSION = 'dictionary-v3';
 const DICTIONARY_TIMEOUT_MS = 8000;
 const WIKTAPI_BASE_URL = 'https://api.wiktapi.dev';
 const FREE_DICTIONARY_API_BASE_URL = 'https://freedictionaryapi.com/api/v1';
+
+export interface DictionaryLookupCandidate {
+  word: string;
+  sourceLang: string;
+}
 
 export async function lookupDictionary(
   settings: ExtensionSettings,
   request: DictionaryLookupRequest,
 ): Promise<DictionaryLookupResult> {
   const provider = settings.dictionaryProvider;
-  const normalizedWord = normalizeDictionaryWord(request.word);
+  const lookupWord = normalizeDictionaryLookupWord(request.word);
+  const normalizedWord = normalizeDictionaryWord(lookupWord);
   const sourceLang = normalizeLanguageCode(request.sourceLang);
   const targetLang = normalizeLanguageCode(request.targetLang);
 
-  if (!normalizedWord || provider === 'off') {
-    return createEmptyResult(provider, normalizedWord, sourceLang, targetLang);
+  if (!lookupWord || !normalizedWord || provider === 'off') {
+    return createEmptyResult(provider, lookupWord || normalizedWord, sourceLang, targetLang);
   }
 
   const edition = normalizeDictionaryEdition(settings.dictionaryEdition);
-  const cacheKey = buildDictionaryCacheKey(provider, edition, normalizedWord, sourceLang, targetLang);
+  const cacheKey = buildDictionaryCacheKey(provider, edition, lookupWord, sourceLang, targetLang);
   const cached = await getCachedDictionary(cacheKey);
   if (cached) {
     return cached;
   }
 
+  const candidates = buildDictionaryLookupCandidates(lookupWord, sourceLang);
+  const sourceLanguagePriority = buildSourceLanguagePriority(lookupWord, sourceLang);
   const result =
     provider === 'wiktapi'
-      ? await lookupWiktApi(normalizedWord, sourceLang, targetLang, edition)
-      : await lookupFreeDictionaryApi(normalizedWord, sourceLang, targetLang);
+      ? await lookupWiktApiCandidates(candidates, targetLang, edition, sourceLanguagePriority)
+      : await lookupFreeDictionaryApiCandidates(candidates, targetLang, sourceLanguagePriority);
 
   await putCachedDictionary(cacheKey, result);
   return result;
@@ -54,8 +62,42 @@ export function buildDictionaryCacheKey(
     edition,
     sourceLang || 'all',
     targetLang || 'all',
-    word.toLowerCase(),
+    word,
   ].join('::');
+}
+
+export function buildDictionaryLookupCandidates(
+  word: string,
+  _sourceLang: string,
+): DictionaryLookupCandidate[] {
+  const lookupWord = normalizeDictionaryLookupWord(word);
+  if (!lookupWord) {
+    return [];
+  }
+
+  const isLatinWord = isLikelyLatinWord(lookupWord);
+  const candidates: DictionaryLookupCandidate[] = [];
+
+  if (isLatinWord) {
+    addLatinDictionaryLookupCandidates(candidates, lookupWord, 'en');
+    addLatinDictionaryLookupCandidates(candidates, lookupWord, '');
+    return candidates;
+  }
+
+  addDictionaryLookupCandidate(candidates, lookupWord, '');
+  return candidates;
+}
+
+function addLatinDictionaryLookupCandidates(
+  candidates: DictionaryLookupCandidate[],
+  lookupWord: string,
+  sourceLang: string,
+): void {
+  addDictionaryLookupCandidate(candidates, lookupWord, sourceLang);
+  const lowerCaseWord = lookupWord.toLowerCase();
+  if (lowerCaseWord !== lookupWord) {
+    addDictionaryLookupCandidate(candidates, lowerCaseWord, sourceLang);
+  }
 }
 
 export function buildDictionaryUrl(
@@ -86,19 +128,23 @@ export function parseWiktApiResult(
   sourceLang: string,
   targetLang: string,
   edition = 'en',
+  sourceLanguagePriority: string[] = buildSourceLanguagePriority(word, sourceLang),
 ): DictionaryLookupResult {
   const entries = isPlainObject(payload) && Array.isArray(payload.entries) ? payload.entries : [];
   const sourceUrl = buildWiktionaryUrl(edition, word);
+  const parsedEntries = sortDictionaryEntries(
+    entries
+      .map((entry) => parseWiktApiEntry(entry, word, sourceLang, targetLang, sourceUrl))
+      .filter((entry): entry is DictionaryEntry => Boolean(entry)),
+    sourceLanguagePriority,
+  ).slice(0, 4);
   return {
     provider: 'wiktapi',
     word,
     normalizedWord: normalizeDictionaryWord(word),
-    sourceLang,
+    sourceLang: parsedEntries[0]?.sourceLang ?? sourceLang,
     targetLang,
-    entries: entries
-      .map((entry) => parseWiktApiEntry(entry, word, sourceLang, targetLang, sourceUrl))
-      .filter((entry): entry is DictionaryEntry => Boolean(entry))
-      .slice(0, 4),
+    entries: parsedEntries,
     sourceUrl,
     attribution: 'WiktApi / Wiktionary data',
     fetchedAt: Date.now(),
@@ -110,6 +156,7 @@ export function parseFreeDictionaryApiResult(
   word: string,
   sourceLang: string,
   targetLang: string,
+  sourceLanguagePriority: string[] = buildSourceLanguagePriority(word, sourceLang),
 ): DictionaryLookupResult {
   const entries = isPlainObject(payload) && Array.isArray(payload.entries) ? payload.entries : [];
   const source = isPlainObject(payload) && isPlainObject(payload.source) ? payload.source : {};
@@ -117,17 +164,20 @@ export function parseFreeDictionaryApiResult(
   const license = isPlainObject(source.license) && typeof source.license.name === 'string'
     ? source.license.name
     : 'CC BY-SA';
+  const parsedEntries = sortDictionaryEntries(
+    entries
+      .map((entry) => parseFreeDictionaryEntry(entry, word, sourceLang, targetLang, sourceUrl, license))
+      .filter((entry): entry is DictionaryEntry => Boolean(entry)),
+    sourceLanguagePriority,
+  ).slice(0, 4);
 
   return {
     provider: 'freedictionaryapi',
     word,
     normalizedWord: normalizeDictionaryWord(word),
-    sourceLang,
+    sourceLang: parsedEntries[0]?.sourceLang ?? sourceLang,
     targetLang,
-    entries: entries
-      .map((entry) => parseFreeDictionaryEntry(entry, word, sourceLang, targetLang, sourceUrl, license))
-      .filter((entry): entry is DictionaryEntry => Boolean(entry))
-      .slice(0, 4),
+    entries: parsedEntries,
     sourceUrl,
     attribution: `FreeDictionaryAPI / Wiktionary data (${license})`,
     fetchedAt: Date.now(),
@@ -136,13 +186,14 @@ export function parseFreeDictionaryApiResult(
 
 function createEmptyResult(
   provider: DictionaryProvider,
-  normalizedWord: string,
+  word: string,
   sourceLang: string,
   targetLang: string,
 ): DictionaryLookupResult {
+  const normalizedWord = normalizeDictionaryWord(word);
   return {
     provider,
-    word: normalizedWord,
+    word,
     normalizedWord,
     sourceLang,
     targetLang,
@@ -153,23 +204,73 @@ function createEmptyResult(
   };
 }
 
+async function lookupWiktApiCandidates(
+  candidates: DictionaryLookupCandidate[],
+  targetLang: string,
+  edition: string,
+  sourceLanguagePriority: string[],
+): Promise<DictionaryLookupResult> {
+  let fallback: DictionaryLookupResult | null = null;
+
+  for (const candidate of candidates) {
+    const result = await lookupWiktApi(
+      candidate.word,
+      candidate.sourceLang,
+      targetLang,
+      edition,
+      sourceLanguagePriority,
+    );
+    fallback ??= result;
+    if (result.entries.length > 0) {
+      return result;
+    }
+  }
+
+  return fallback ?? createEmptyResult('wiktapi', '', '', targetLang);
+}
+
 async function lookupWiktApi(
   word: string,
   sourceLang: string,
   targetLang: string,
   edition: string,
+  sourceLanguagePriority: string[],
 ): Promise<DictionaryLookupResult> {
   const payload = await fetchJson(buildDictionaryUrl('wiktapi', word, sourceLang, edition));
-  return parseWiktApiResult(payload, word, sourceLang, targetLang, edition);
+  return parseWiktApiResult(payload, word, sourceLang, targetLang, edition, sourceLanguagePriority);
+}
+
+async function lookupFreeDictionaryApiCandidates(
+  candidates: DictionaryLookupCandidate[],
+  targetLang: string,
+  sourceLanguagePriority: string[],
+): Promise<DictionaryLookupResult> {
+  let fallback: DictionaryLookupResult | null = null;
+
+  for (const candidate of candidates) {
+    const result = await lookupFreeDictionaryApi(
+      candidate.word,
+      candidate.sourceLang,
+      targetLang,
+      sourceLanguagePriority,
+    );
+    fallback ??= result;
+    if (result.entries.length > 0) {
+      return result;
+    }
+  }
+
+  return fallback ?? createEmptyResult('freedictionaryapi', '', '', targetLang);
 }
 
 async function lookupFreeDictionaryApi(
   word: string,
   sourceLang: string,
   targetLang: string,
+  sourceLanguagePriority: string[],
 ): Promise<DictionaryLookupResult> {
   const payload = await fetchJson(buildDictionaryUrl('freedictionaryapi', word, sourceLang));
-  return parseFreeDictionaryApiResult(payload, word, sourceLang, targetLang);
+  return parseFreeDictionaryApiResult(payload, word, sourceLang, targetLang, sourceLanguagePriority);
 }
 
 async function fetchJson(url: string): Promise<unknown> {
@@ -400,10 +501,13 @@ function extractExampleText(example: unknown): string {
 }
 
 function normalizeDictionaryWord(value: string): string {
+  return normalizeDictionaryLookupWord(value).toLowerCase();
+}
+
+function normalizeDictionaryLookupWord(value: string): string {
   return value
     .trim()
-    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
-    .toLowerCase();
+    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
 }
 
 function normalizeLanguageCode(value: string): string {
@@ -414,6 +518,93 @@ function normalizeLanguageCode(value: string): string {
 function normalizeDictionaryEdition(value: string): string {
   const normalized = normalizeLanguageCode(value);
   return normalized || 'en';
+}
+
+function isLikelyLatinWord(value: string): boolean {
+  return /[A-Za-z]/.test(value) && !/[^\p{Script=Latin}\p{M}\p{N}' -]/u.test(value);
+}
+
+function buildSourceLanguagePriority(word: string, sourceLang: string): string[] {
+  const lookupWord = normalizeDictionaryLookupWord(word);
+  const normalizedSourceLang = normalizeLanguageCode(sourceLang);
+  const priority: string[] = [];
+
+  if (isLikelyLatinWord(lookupWord)) {
+    addLanguagePriority(priority, 'en');
+    addLanguagePriority(priority, normalizedSourceLang);
+    return priority;
+  }
+
+  addLanguagePriority(priority, normalizedSourceLang);
+  addLanguagePriority(priority, 'en');
+  return priority;
+}
+
+function sortDictionaryEntries(
+  entries: DictionaryEntry[],
+  sourceLanguagePriority: string[],
+): DictionaryEntry[] {
+  const priority = uniqueLanguageCodes(sourceLanguagePriority);
+  if (priority.length === 0) {
+    return entries;
+  }
+
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((left, right) => {
+      const rankDelta =
+        getSourceLanguageRank(left.entry.sourceLang, priority) -
+        getSourceLanguageRank(right.entry.sourceLang, priority);
+      return rankDelta || left.index - right.index;
+    })
+    .map(({ entry }) => entry);
+}
+
+function getSourceLanguageRank(sourceLang: string, priority: string[]): number {
+  const normalized = normalizeLanguageCode(sourceLang);
+  const directRank = priority.indexOf(normalized);
+  if (directRank >= 0) {
+    return directRank;
+  }
+
+  if (isChineseLanguageCode(normalized)) {
+    const chineseRank = priority.findIndex(isChineseLanguageCode);
+    if (chineseRank >= 0) {
+      return chineseRank;
+    }
+  }
+
+  return priority.length;
+}
+
+function isChineseLanguageCode(value: string): boolean {
+  return value === 'zh' || value === 'cmn' || value === 'yue' || value === 'hak' || value === 'nan';
+}
+
+function uniqueLanguageCodes(values: string[]): string[] {
+  const result: string[] = [];
+  for (const value of values) {
+    addLanguagePriority(result, value);
+  }
+  return result;
+}
+
+function addLanguagePriority(values: string[], value: string): void {
+  const normalized = normalizeLanguageCode(value);
+  if (normalized && !values.includes(normalized)) {
+    values.push(normalized);
+  }
+}
+
+function addDictionaryLookupCandidate(
+  candidates: DictionaryLookupCandidate[],
+  word: string,
+  sourceLang: string,
+): void {
+  if (candidates.some((candidate) => candidate.word === word && candidate.sourceLang === sourceLang)) {
+    return;
+  }
+  candidates.push({ word, sourceLang });
 }
 
 function buildWiktionaryUrl(edition: string, word: string): string {
