@@ -72,7 +72,7 @@
 - 真实页面 smoke 脚本，可在任意 live page 上运行扩展，并使用本地 mock provider 或配置的真实 provider。
 - 真实 provider E2E 探测现在只通过扩展 background 翻译路径执行；之前重复维护的 direct prompt/schema fallback 已移除，以避免 prompt 漂移。
 - 构建清洁度现在会强制 TypeScript 未使用代码检查，并通过 npm overrides 把 CRXJS 的传递 Rollup 依赖 pin 到 `2.80.0`，以避开存在漏洞的 `2.79.2` 构建。
-- 面向开源的 README 结构，覆盖 status、quick start、configuration、usage、architecture、development、testing、packaging、privacy/security、contribution guidance、roadmap 和 license status，并维护同步中文版。
+- 面向开源的 README 结构，覆盖生成的头图、status、highlights、feature scope、quick start、configuration、usage、architecture、development、testing matrix、packaging and releases、privacy/security、contribution guidance、roadmap 和 license status，并维护同步中文版。项目引用的头图位于 `docs/assets/metatranslation-header.png`。
 
 ## 验证状态
 
@@ -109,7 +109,7 @@
 - 在添加站点专用提取改动前，使用 `npm run e2e:page` 做站点级回归。
 - 考虑增加一个小型 diagnostics 面板或 debug logging 开关，用于失败 block 和非法 alignments。
 - 随行为变化同步 README、AGENTS 和本文档。
-- 保持 README 达到开源入口文档质量；当 onboarding、configuration、privacy、contribution 或 release guidance 变化时，同步更新英文和中文版本。
+- 保持 README 达到开源入口文档质量；当 onboarding、configuration、privacy、contribution、release guidance 或 README 视觉资产变化时，同步更新英文和中文版本。
 
 ## 决策记录
 

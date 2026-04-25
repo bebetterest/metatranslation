@@ -1,62 +1,89 @@
 # metatranslation
 
-面向桌面 Chrome/Edge 的 MV3 网页翻译扩展。它保留网页原文，在原文下一条视觉行渲染译文，支持源文/译文 span 悬浮联动，并在源文侧稳定悬浮后记录词汇。
+<p align="center">
+  <img src="docs/assets/metatranslation-header.png" alt="metatranslation 保留网页原文，在下方渲染译文，并在悬浮时联动高亮对齐短语" width="100%">
+</p>
 
-> 状态：活跃原型。当前适合本地开发和未打包扩展测试；公开发布前应补充 license 文件、发布说明和最终隐私审查。
+<p align="center">
+  面向桌面 Chrome 和 Edge 的双行网页翻译扩展。它保留网页原文，在原文下方渲染译文，支持模型对齐悬浮高亮，并在源文侧稳定悬浮后记录词汇。
+</p>
 
-English documentation: [README.md](README.md)
+<p align="center">
+  <a href="README.md">English documentation</a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#配置">配置</a> ·
+  <a href="#测试矩阵">测试</a> ·
+  <a href="#贡献">贡献</a>
+</p>
+
+<p align="center">
+  <img alt="状态：活跃原型" src="https://img.shields.io/badge/status-active%20prototype-0f766e">
+  <img alt="平台：Chrome 和 Edge MV3" src="https://img.shields.io/badge/platform-Chrome%2FEdge%20MV3-2563eb">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6.x-3178c6">
+  <img alt="License：尚未选择" src="https://img.shields.io/badge/license-not%20selected-lightgrey">
+</p>
+
+> 状态：活跃原型。当前适合本地开发和未打包扩展测试；公开分发前仍需要明确的 `LICENSE` 文件、发布说明或 changelog，以及最终隐私审查。
 
 ## 目录
 
-- [为什么做](#为什么做)
-- [功能](#功能)
-- [当前范围](#当前范围)
+- [项目状态](#项目状态)
+- [亮点](#亮点)
+- [功能范围](#功能范围)
 - [快速开始](#快速开始)
 - [配置](#配置)
 - [使用](#使用)
 - [架构](#架构)
 - [开发](#开发)
-- [测试](#测试)
-- [打包](#打包)
+- [测试矩阵](#测试矩阵)
+- [打包与发布](#打包与发布)
 - [隐私与安全](#隐私与安全)
 - [贡献](#贡献)
 - [路线图](#路线图)
 - [License](#license)
 
-## 为什么做
+## 项目状态
 
-多数网页翻译扩展会替换原文，或者隐藏过多原始页面结构。metatranslation 采用更保守的路线：
+metatranslation 是一个 Chromium Manifest V3 扩展，面向仍然需要保留原文阅读语境的网页翻译场景。它不会替换源文本，而是在原始阅读流旁注入译文行，使用模型返回的 source-span alignment 做悬浮高亮，并且只在源文侧稳定悬浮后记录词汇。
 
-- 尽量保留源 DOM。
-- 用相邻行注入译文，而不是替换原文。
-- 使用模型返回的 source-span alignment 做悬浮高亮。
-- 跳过不安全或模糊的 block，而不是猜测。
-- 保持 provider 调用、DOM 提取、渲染、存储和 records UI 模块化。
+当前发布状态：
 
-## 功能
+- 目标浏览器：桌面 Chrome 和 Edge，Manifest V3。
+- 安装方式：从生成的 `dist` 目录加载本地未打包扩展。
+- API 形态：OpenAI 兼容的 `chat/completions`。
+- 对齐策略：仅使用模型 alignment。非法 block 会重试，仍失败则跳过，不做猜测。
+- 发布准备度：已有打包和 GitHub Release 自动化；公开分发仍受 license、发布说明和隐私审查阻塞。
 
-- 通过扩展按钮或网页右键菜单手动触发翻译。
-- 按从上到下发现标题、段落、列表项、链接、按钮和受支持的 input 按钮。
-- 原始 DOM 文本保持不变；注入译文继承源文本的字体、字号、行高、颜色和文本装饰。
-- 链接、按钮、密集 flex/grid 布局、absolute/fixed 标签使用内部第二行策略，避免挤压横向 UI。
-- 渐进式并发翻译：完成的 chunk 会立即渲染，不等待整页队列。
-- 使用 `MutationObserver` 对 SPA 变化、局部重渲染和新增内容进行增量更新。
-- 完整页面导航会重置当前文档的翻译状态，因此新文档中的右键菜单会回到 `翻译本页`。
-- 使用已校验的模型 alignment，在源文词/短语和译文 span 之间悬浮联动高亮。
-- 源文悬浮字典弹窗支持 WiktApi 或 FreeDictionaryAPI，并带本地查询缓存和来源链接。
-- 源文侧稳定悬浮 2 秒后记录词汇，支持聚合词频和事件历史。
-- Options 页面支持 provider 设置、目标语言、并发、重试、字典行为、记录搜索、排序和 CSV 导出。
-- IndexedDB 存储翻译缓存、字典缓存、聚合词汇记录和词汇事件历史。
-- CSV 导出包含 UTF-8 BOM，并中和电子表格公式前缀。
-- 提供可重复执行的构建、测试、浏览器 smoke、E2E 和 zip 打包脚本。
+## 亮点
 
-## 当前范围
+- 保留原始网页文本，并把译文注入为下一条视觉行。
+- 渐进式并发翻译；完成的 chunk 立即渲染。
+- 在使用悬浮 alignment 前先校验 translated-part 模型输出。
+- Provider prompt 明确把网页文本、相邻上下文和页面 URL 视为不可信数据。
+- 支持源文/译文悬浮高亮、源文悬浮字典查询和词汇记录。
+- 设置存储在 `chrome.storage.local`，缓存和记录数据存储在 IndexedDB。
+- 提供聚焦单元检查、浏览器 smoke、mock-provider E2E、real-provider E2E 和打包自动化。
 
-- 支持浏览器：桌面 Chrome 和 Edge，Manifest V3。
-- 支持安装方式：从 `dist` 加载未打包扩展。
-- v1 暂不支持：Firefox、Safari、默认全站自动翻译、本地启发式 alignment 兜底。
-- 翻译 API 形态：OpenAI 兼容的 `chat/completions`。
-- 对齐策略：仅使用模型 alignment。非法输出会重试，仍失败则跳过，不做猜测。
+## 功能范围
+
+| 领域 | 当前行为 |
+| --- | --- |
+| 激活 | 通过扩展按钮或网页右键菜单手动切换。默认不做全站自动翻译。 |
+| 提取 | 使用保守的从上到下 `TreeWalker` 发现标题、段落、列表项、链接、按钮和受支持的 input 按钮。 |
+| 渲染 | 源 DOM 文本保持原位。译文节点继承源文本样式，并可在关闭时清理。密集 flex/grid 和 overlay label 使用内部第二行渲染。 |
+| 翻译 | OpenAI 兼容 provider 调用，使用 structured JSON schema 输出，并支持配置目标语言、上下文窗口、并发、chunk size、超时和重试次数。 |
+| 对齐 | 模型返回 `translatedParts[].sourceSpanIds`；扩展在本地派生运行时 source/target ranges。支持严格和容错校验模式。 |
+| 字典 | 源文悬浮字典弹窗可使用 WiktApi、FreeDictionaryAPI 或关闭。字典结果会归一化并本地缓存。 |
+| 记录 | 源文侧稳定悬浮 2 秒后记录词汇命中、聚合次数、最近上下文、URL 和事件历史。 |
+| 导出 | Records CSV 导出包含 UTF-8 BOM，并中和来自不可信页面文本的电子表格公式前缀。 |
+| 诊断 | 页面内状态面板和 background diagnostics 会展示 skipped blocks、failed chunks、provider-output failure categories 和 alignment coverage。 |
+
+当前范围暂不支持：
+
+- Firefox 和 Safari。
+- 默认全站自动翻译。
+- 本地启发式 alignment fallback。
+- 面向公开商店分发的打包流程。
 
 ## 快速开始
 
@@ -117,7 +144,8 @@ Provider 请求细节：
 - 不发送 `reasoning_split`。
 - OpenRouter 特定 headers 保持隔离在 provider-header 逻辑中。
 - Provider prompt 会把网页 text、相邻 context 和 page URL 视为不可信数据。
-- 使用三个多语言 format-only alignment 示例，并在 background diagnostics 中报告更细的 provider-output failure counts 和聚合 alignment coverage。
+- 使用三个多语言 format-only alignment 示例。
+- 在 background diagnostics 中报告更细的 provider-output failure counts 和聚合 alignment coverage。
 
 ## 使用
 
@@ -161,6 +189,7 @@ options page
 关键路径：
 
 - `manifest.config.ts`：MV3 manifest 定义。
+- `docs/assets/metatranslation-header.png`：README 头图。
 - `src/background/index.ts`：service worker、action/context-menu 处理、消息路由、缓存编排、记录入口。
 - `src/background/openai.ts`：OpenAI 兼容请求构建、JSON 提取、重试、输出校验。
 - `src/background/dictionary.ts`：WiktApi 和 FreeDictionaryAPI 查询归一化。
@@ -176,7 +205,7 @@ options page
 
 ## 开发
 
-使用仓库脚本和本地依赖。项目已经有脚本时，避免使用临时全局工具替代。TypeScript 构建会开启严格的未使用代码检查。`package.json` 也保留了 `rollup@2.80.0` 的 npm override，因为 `@crxjs/vite-plugin@2.4.0` 依赖较旧且存在漏洞的 Rollup 2 构建。
+使用仓库脚本和本地依赖。项目已经有脚本时，避免使用临时全局工具替代。TypeScript 构建会开启严格的未使用代码检查。`package.json` 保留了 `rollup@2.80.0` 的 npm override，因为 `@crxjs/vite-plugin@2.4.0` 依赖较旧且存在漏洞的 Rollup 2 构建。
 
 ```bash
 npm install --cache .npm-cache
@@ -198,83 +227,28 @@ npm test
 | `npm run e2e:real` | 使用配置的真实 provider 运行 fixture E2E。 |
 | `npm run package:zip` | 重新构建并生成 `artifacts/metatranslation-<version>.zip`。 |
 
-## 测试
+## 测试矩阵
 
-聚焦检查：
-
-```bash
-npm run test:unit
-```
-
-当前覆盖 alignment 校验、translated-part provider schema、source-span 处理、tolerant output 恢复、字典 provider 解析、OpenRouter header 兼容、JSON 提取、设置归一化和 CSV 转义。
-
-依赖审计：
-
-```bash
-npm audit --cache .npm-cache
-```
-
-构建验证：
-
-```bash
-npm run build
-```
-
-浏览器 smoke test：
-
-```bash
-BROWSER_BIN="/path/to/Chromium-or-Chrome-for-Testing" npm run smoke:test
-```
-
-Mock provider 浏览器 E2E：
-
-```bash
-BROWSER_BIN="/path/to/Chrome for Testing" npm run e2e:mock
-```
-
-使用本地 mock provider 的真实页面 smoke：
-
-```bash
-BROWSER_BIN="/path/to/Chrome for Testing" \
-PAGE_SMOKE_URL="https://www.reddit.com/r/MachineLearning/comments/b179cs/d_the_bitter_lesson/" \
-npm run e2e:page
-```
-
-使用真实 provider 的真实页面 smoke：
-
-```bash
-BROWSER_BIN="/path/to/Chrome for Testing" \
-PAGE_SMOKE_PROVIDER="real" \
-PAGE_SMOKE_URL="https://vision-banana.github.io/" \
-PAGE_SMOKE_BASE_URL="https://openrouter.ai/api/v1" \
-PAGE_SMOKE_KEY="..." \
-PAGE_SMOKE_MODEL="x-ai/grok-4.1-fast" \
-PAGE_SMOKE_REQUIRE_CJK="1" \
-npm run e2e:page
-```
-
-真实 API fixture E2E：
-
-```bash
-BROWSER_BIN="/path/to/Chrome for Testing" \
-REAL_TEST_BASE_URL="https://provider.example/v1" \
-REAL_TEST_KEY="..." \
-REAL_TEST_MODEL="model-id" \
-REAL_TEST_TARGET_LANG="zh-CN" \
-npm run e2e:real
-```
+| 层级 | 命令 | 用途 |
+| --- | --- | --- |
+| 聚焦单元检查 | `npm run test:unit` | 校验 alignment validation、provider schema、prompt contract、dictionary parsing、settings normalization、diagnostics 和 CSV escaping。 |
+| 类型检查与构建 | `npm run build` | 确认 TypeScript 和 Vite 能把 MV3 扩展构建到 `dist`。 |
+| 组合本地验证 | `npm test` | 一条命令运行聚焦检查和构建。 |
+| 依赖审计 | `npm audit --cache .npm-cache` | 使用本地 npm cache 检查已安装依赖漏洞状态。 |
+| 浏览器 smoke | `BROWSER_BIN="/path/to/Chromium-or-Chrome-for-Testing" npm run smoke:test` | 加载构建后的扩展并验证基础注册/UI。 |
+| Mock-provider E2E | `BROWSER_BIN="/path/to/Chrome for Testing" npm run e2e:mock` | 不消耗真实 API quota 验证扩展行为。 |
+| 真实页面 smoke | `BROWSER_BIN="/path/to/Chrome for Testing" PAGE_SMOKE_URL="https://example.com" npm run e2e:page` | 使用 mock 或真实 provider 设置在 live page 上运行扩展。 |
+| 真实 provider fixture E2E | `BROWSER_BIN="/path/to/Chrome for Testing" REAL_TEST_BASE_URL="https://provider.example/v1" REAL_TEST_KEY="..." REAL_TEST_MODEL="model-id" npm run e2e:real` | 通过扩展 background 翻译路径验证配置的 provider。 |
 
 自动化说明：建议使用 Chromium 或 Chrome for Testing。一些品牌版 Google Chrome 会在自动化场景中拒绝 `--load-extension`。
 
-## 打包
+## 打包与发布
 
 ```bash
 npm run package:zip
 ```
 
 打包脚本会重新构建扩展，并写入 `artifacts/metatranslation-<version>.zip`。生成的压缩包不要提交到 git。
-
-### 自动 GitHub Release
 
 向 `main` 推送并且 `package.json` 的 `version` 发生变化时，会运行 `Release on package version change` workflow。该 workflow 会比较前后两个 package version；当版本变化时，它会使用 `npm ci` 安装依赖，校验根 `package-lock.json` 版本，运行 `npm run test:unit`，运行 `npm run package:zip`，创建 `v<version>` tag，并发布包含 `artifacts/metatranslation-<version>.zip` 的 GitHub Release。
 
@@ -296,12 +270,13 @@ npm run package:zip
 
 1. 阅读 [AGENTS.md](AGENTS.md) 了解仓库约定。
 2. 保持英文 Markdown 文档与对应 `*_cn.md` 翻译同步。
-3. 逻辑改动使用聚焦模块测试；扩展行为改动使用浏览器测试。
-4. 至少运行 `npm run test:unit` 和 `npm run build`。
-5. 除非已经讨论清楚取舍，不要引入 provider-specific 行为。
-6. 除非明确要求，不要添加本地启发式 alignment fallback。
-7. 准备 GitHub Release 时，同时 bump `package.json` 和 `package-lock.json`。
-8. 保持 `dist/`、`artifacts/`、`.npm-cache/`、截图和浏览器 profile 等生成文件不被追踪。
+3. 当行为、验证状态、风险或发布状态变化时，更新 [docs/TECHNICAL_PLAN.md](docs/TECHNICAL_PLAN.md)。
+4. 逻辑改动使用聚焦模块测试；扩展行为改动使用浏览器测试。
+5. 至少运行 `npm run test:unit` 和 `npm run build`。
+6. 除非已经讨论清楚取舍，不要引入 provider-specific 行为。
+7. 除非明确要求，不要添加本地启发式 alignment fallback。
+8. 准备 GitHub Release 时，同时 bump `package.json` 和 `package-lock.json`。
+9. 保持 `dist/`、`artifacts/`、`.npm-cache/`、截图和浏览器 profile 等生成文件不被追踪。
 
 ## 路线图
 

@@ -72,7 +72,7 @@ This document tracks the technical route, current progress, validation status, r
 - Real-page smoke script that runs the extension against arbitrary live pages, using either the local mock provider or a configured real provider.
 - Real-provider E2E probes now go through the extension background translation path only; the previous duplicate direct prompt/schema fallback was removed to avoid prompt drift.
 - Build hygiene now enforces unused TypeScript checks and pins the CRXJS transitive Rollup dependency to `2.80.0` through npm overrides to avoid the vulnerable `2.79.2` build.
-- Open-source-oriented README structure covering status, quick start, configuration, usage, architecture, development, testing, packaging, privacy/security, contribution guidance, roadmap, and license status, with a synchronized Chinese version.
+- Open-source-oriented README structure covering a generated header image, status, highlights, feature scope, quick start, configuration, usage, architecture, development, testing matrix, packaging and releases, privacy/security, contribution guidance, roadmap, and license status, with a synchronized Chinese version. The project-referenced header image lives at `docs/assets/metatranslation-header.png`.
 
 ## Validation Status
 
@@ -109,7 +109,7 @@ This document tracks the technical route, current progress, validation status, r
 - Use `npm run e2e:page` for site-specific regressions before adding site-specific extraction changes.
 - Consider a small diagnostics panel or debug logging switch for failed blocks and invalid alignments.
 - Keep README, AGENTS, and this plan synchronized as behavior changes.
-- Keep README at open-source entry quality and update both English and Chinese versions when onboarding, configuration, privacy, contribution, or release guidance changes.
+- Keep README at open-source entry quality and update both English and Chinese versions when onboarding, configuration, privacy, contribution, release guidance, or README visual assets change.
 
 ## Decision Log
 
