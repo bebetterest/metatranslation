@@ -9,6 +9,8 @@ artifacts/
 
 # Local agent scratch files
 .agents/
+AGENTS.md
+AGENTS_cn.md
 
 # Browser automation output
 browser-profile*/
