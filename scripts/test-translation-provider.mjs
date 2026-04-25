@@ -43,6 +43,7 @@ await test('sends generic reasoning none request body', async () => {
   assert.equal(calls[0].url, 'https://provider.example/v1/chat/completions');
   assert.deepEqual(calls[0].body.reasoning, { effort: 'none' });
   assert.equal(calls[0].body.response_format.type, 'json_schema');
+  assert.equal(calls[0].body.response_format.json_schema.name, 'metatranslation_response');
   assert.equal(calls[0].body.response_format.json_schema.strict, true);
   assert.equal(calls[0].body.response_format.json_schema.schema.required[0], 'blocks');
   assert.ok(

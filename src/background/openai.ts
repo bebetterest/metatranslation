@@ -313,7 +313,7 @@ function buildRequestBody(
     response_format: {
       type: 'json_schema',
       json_schema: {
-        name: 'dual_line_translation_response',
+        name: 'metatranslation_response',
         strict: true,
         schema: buildTranslationResponseSchema(),
       },

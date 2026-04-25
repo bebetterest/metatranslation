@@ -6,7 +6,6 @@ const FIXTURES = new Map([
   [
     'A Tiny Translation Fixture',
     {
-      sourceLang: 'en',
       translatedText: '一个小翻译装置',
       alignments: [
         ['A', '一个'],
@@ -19,7 +18,6 @@ const FIXTURES = new Map([
   [
     'I like you.',
     {
-      sourceLang: 'en',
       translatedText: '我喜欢你。',
       alignments: [
         ['I', '我'],
@@ -32,7 +30,6 @@ const FIXTURES = new Map([
   [
     'The sky is blue.',
     {
-      sourceLang: 'en',
       translatedText: '天空是蓝色的。',
       alignments: [
         ['The', '天'],
@@ -46,7 +43,6 @@ const FIXTURES = new Map([
   [
     'We read books.',
     {
-      sourceLang: 'en',
       translatedText: '我们读书。',
       alignments: [
         ['We', '我们'],
@@ -59,7 +55,6 @@ const FIXTURES = new Map([
   [
     'Do not translate this button label',
     {
-      sourceLang: 'en',
       translatedText: '不要翻译这个按钮标签',
       alignments: [
         ['Do', '不要'],
@@ -74,7 +69,6 @@ const FIXTURES = new Map([
   [
     'Flexible text stays below.',
     {
-      sourceLang: 'en',
       translatedText: '灵活文本保持在下方。',
       alignments: [
         ['Flexible', '灵活'],
@@ -88,7 +82,6 @@ const FIXTURES = new Map([
   [
     'Do not translate this link text',
     {
-      sourceLang: 'en',
       translatedText: '不要翻译这个链接文本',
       alignments: [
         ['Do', '不要'],
@@ -103,7 +96,6 @@ const FIXTURES = new Map([
   [
     'Do not translate this input button',
     {
-      sourceLang: 'en',
       translatedText: '不要翻译这个输入按钮',
       alignments: [
         ['Do', '不要'],

@@ -1,7 +1,7 @@
 {
   "name": "metatranslation-extension",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,8 +18,10 @@
     "@crxjs/vite-plugin": "^2.4.0",
     "@types/chrome": "^0.1.40",
     "@types/node": "^24.10.0",
-    "type-fest": "^4.41.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.9"
+  },
+  "overrides": {
+    "rollup": "2.80.0"
   }
 }

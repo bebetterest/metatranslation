@@ -10,7 +10,7 @@ import { getCachedDictionary, putCachedDictionary } from './db.ts';
 const DICTIONARY_CACHE_SCHEMA_VERSION = 'dictionary-v1';
 const DICTIONARY_TIMEOUT_MS = 8000;
 const WIKTAPI_BASE_URL = 'https://api.wiktapi.dev';
-const FREE_DICTIONARY_BASE_URL = 'https://freedictionaryapi.com/api/v1';
+const FREE_DICTIONARY_API_BASE_URL = 'https://freedictionaryapi.com/api/v1';
 
 export async function lookupDictionary(
   settings: ExtensionSettings,
@@ -74,8 +74,7 @@ export function buildDictionaryUrl(
 
   const language = sourceLang || 'all';
   const url = new URL(
-    `/api/v1/entries/${encodeURIComponent(language)}/${encodeURIComponent(word)}`,
-    'https://freedictionaryapi.com',
+    `${FREE_DICTIONARY_API_BASE_URL}/entries/${encodeURIComponent(language)}/${encodeURIComponent(word)}`,
   );
   url.searchParams.set('translations', 'true');
   return url.toString();
