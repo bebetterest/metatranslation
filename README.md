@@ -176,7 +176,7 @@ Key paths:
 
 ## Development
 
-Use the repository scripts and local dependencies. Avoid ad hoc global tooling when a project script exists.
+Use the repository scripts and local dependencies. Avoid ad hoc global tooling when a project script exists. The TypeScript build runs with strict unused-code checks. `package.json` also keeps an npm override for `rollup@2.80.0` because `@crxjs/vite-plugin@2.4.0` depends on an older vulnerable Rollup 2 build.
 
 ```bash
 npm install --cache .npm-cache
@@ -207,6 +207,12 @@ npm run test:unit
 ```
 
 Current coverage includes alignment validation, translated-part provider schema checks, source-span handling, tolerant output recovery, dictionary provider parsing, OpenRouter header compatibility, JSON extraction, settings normalization, and CSV escaping.
+
+Dependency audit:
+
+```bash
+npm audit --cache .npm-cache
+```
 
 Build verification:
 

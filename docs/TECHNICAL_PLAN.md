@@ -70,15 +70,19 @@ This document tracks the technical route, current progress, validation status, r
 - GitHub Actions release automation that detects `package.json` version changes on `main`, validates the lockfile version, runs unit checks, packages the extension, tags `v<version>`, and publishes the zip to GitHub Releases.
 - Mock provider browser E2E wrapper for full extension regression without spending real API quota.
 - Real-page smoke script that runs the extension against arbitrary live pages, using either the local mock provider or a configured real provider.
+- Real-provider E2E probes now go through the extension background translation path only; the previous duplicate direct prompt/schema fallback was removed to avoid prompt drift.
+- Build hygiene now enforces unused TypeScript checks and pins the CRXJS transitive Rollup dependency to `2.80.0` through npm overrides to avoid the vulnerable `2.79.2` build.
 - Open-source-oriented README structure covering status, quick start, configuration, usage, architecture, development, testing, packaging, privacy/security, contribution guidance, roadmap, and license status, with a synchronized Chinese version.
 
 ## Validation Status
 
 - `npm run build` passes.
 - `npm run test:unit` passes.
+- `npm test` passes.
+- `npm audit --cache .npm-cache` reports 0 vulnerabilities after the Rollup override.
 - Unit tests now cover strict whole-block rejection for any invalid alignment, translated-part output, repeated target text, non-contiguous source spans, dictionary provider URL/result parsing, generic `reasoning: { effort: "none" }` request bodies, structured-output `json_schema`, OpenRouter headers, fenced/think JSON extraction, parse-failure strict retry recovery, settings normalization, alignment coverage diagnostics, fine-grained provider-output failure counts, and CSV escaping.
 - Unit tests also verify the raw provider schema requires model-output block `id` plus `translatedParts[].text`, rejects `sourceLang`, singular `sourceSpanId`, and extra part fields, and that new Grok-style output avoids model-counted source or target offsets. Prompt tests verify payload blocks include `id`, payload `sourceSpans` expose only `id/text`, treat webpage text/context/page URL as untrusted data rather than instructions, send only three multilingual examples, require the model to prefer fine-grained word/term alignments instead of whole-clause parts, keep strict id mismatches retryable, and recover tolerant output by ignoring invalid spans, missing blocks, duplicate ids, and extra blocks.
-- `npm run package:zip` produces `artifacts/metatranslation-0.1.1.zip`.
+- `npm run package:zip` produces `artifacts/metatranslation-0.1.2.zip`.
 - Real API E2E last passed with OpenRouter `https://openrouter.ai/api/v1` and `x-ai/grok-4.1-fast` before the latest `translatedParts` contract update; rerun it before release if real-provider confidence is required.
 - `npm run e2e:mock` passes in a Chrome for Testing environment; it covers progressive rendering, internal second-line rendering for flex toolbar links/buttons, interactive proxy clicks, translated-node repositioning after DOM moves, DOM-mutation cancellation of pending hover records, one record per continuous source-side span dwell, source hover recording, input-control source hover recording, disable cleanup, and translation-state reset after a full-page navigation.
 - `npm run e2e:page` has been exercised against the Reddit Bitter Lesson page with the local mock provider; the page exposes extractable candidates and renders injected translation nodes after the Reddit verification redirect completes.

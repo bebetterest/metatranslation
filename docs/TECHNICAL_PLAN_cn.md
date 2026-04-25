@@ -70,15 +70,19 @@
 - GitHub Actions release 自动化会检测 `main` 上 `package.json` 的 version 变化，校验 lockfile 版本，运行单元检查，打包扩展，创建 `v<version>` tag，并把 zip 发布到 GitHub Releases。
 - Mock provider 浏览器 E2E 包装脚本，可在不消耗真实 API quota 的情况下进行完整扩展回归。
 - 真实页面 smoke 脚本，可在任意 live page 上运行扩展，并使用本地 mock provider 或配置的真实 provider。
+- 真实 provider E2E 探测现在只通过扩展 background 翻译路径执行；之前重复维护的 direct prompt/schema fallback 已移除，以避免 prompt 漂移。
+- 构建清洁度现在会强制 TypeScript 未使用代码检查，并通过 npm overrides 把 CRXJS 的传递 Rollup 依赖 pin 到 `2.80.0`，以避开存在漏洞的 `2.79.2` 构建。
 - 面向开源的 README 结构，覆盖 status、quick start、configuration、usage、architecture、development、testing、packaging、privacy/security、contribution guidance、roadmap 和 license status，并维护同步中文版。
 
 ## 验证状态
 
 - `npm run build` 通过。
 - `npm run test:unit` 通过。
+- `npm test` 通过。
+- `npm audit --cache .npm-cache` 在 Rollup override 后报告 0 个漏洞。
 - 单元测试现在覆盖任一非法 alignment 都整块拒绝、translated-part 输出、重复目标文本、非连续 source spans、字典 provider URL/result 解析、通用 `reasoning: { effort: "none" }` 请求体、structured-output `json_schema`、OpenRouter header、fenced/think JSON 提取、解析失败后的严格重试恢复、设置归一化、alignment coverage diagnostics、更细的 provider-output failure counts，以及 CSV 转义。
 - 单元测试也验证 raw provider schema 在模型输出 block 层要求 `id` 和 `translatedParts[].text`、拒绝 `sourceLang`、单数 `sourceSpanId` 和额外 part 字段，并确认新的 Grok 风格输出不再依赖模型计算 source 或 target offsets。Prompt 测试会验证 payload blocks 包含 `id`，payload `sourceSpans` 只暴露 `id/text`，把网页 text/context/page URL 当作不可信数据而不是指令，只发送三个多语言示例，要求模型优先使用细粒度词/术语对齐而不是整句或整从句 part，保持严格模式下 id mismatch 可重试，并通过忽略非法 spans、缺失 blocks、重复 ids 和多余 blocks 来恢复容错输出。
-- `npm run package:zip` 会生成 `artifacts/metatranslation-0.1.1.zip`。
+- `npm run package:zip` 会生成 `artifacts/metatranslation-0.1.2.zip`。
 - 真实 API E2E 在最新 `translatedParts` 契约更新前曾使用 OpenRouter `https://openrouter.ai/api/v1` 和 `x-ai/grok-4.1-fast` 跑通过；发布前如需真实 provider 信心，需要重新运行。
 - `npm run e2e:mock` 已在 Chrome for Testing 环境中通过；它覆盖渐进式渲染、flex toolbar 链接/按钮的内部第二行渲染、交互代理点击、DOM 移动后的译文重定位、DOM mutation 取消待触发 hover 记录、同一次连续源文侧 span 悬停只记录一次、源文 hover 记录、input 控件源文 hover 记录、关闭清理，以及完整页面导航后的翻译状态重置。
 - `npm run e2e:page` 已使用本地 mock provider 在 Reddit Bitter Lesson 页面上跑过；该页面在 Reddit 验证跳转完成后存在可提取候选块，并能渲染注入的译文节点。

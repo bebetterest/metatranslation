@@ -27,8 +27,9 @@ Target platform is desktop Chrome/Edge MV3 only. Do not add Firefox/Safari compa
 - Vite
 - CRXJS MV3 manifest tooling
 - Chrome extension APIs
-- IndexedDB for translation cache and word records
+- IndexedDB for translation cache, dictionary cache, and word records
 - `chrome.storage.local` for settings
+- TypeScript builds enforce unused-code checks. Keep the `rollup@2.80.0` npm override unless `@crxjs/vite-plugin` stops pinning a vulnerable Rollup 2 dependency.
 
 ## Core Commands
 
@@ -79,7 +80,7 @@ Never commit real API keys or generated artifacts.
 - `src/background/index.ts`: service worker, action/context-menu handling, message routing, cache orchestration, record persistence entrypoints.
 - `src/background/openai.ts`: OpenAI-compatible translation API client and alignment validation.
 - `src/background/dictionary.ts`: source-hover dictionary provider client and response normalization.
-- `src/background/db.ts`: IndexedDB stores for translation cache, aggregate word records, and word events.
+- `src/background/db.ts`: IndexedDB stores for translation cache, dictionary cache, aggregate word records, and word events.
 - `src/content/injected.ts`: injected content runtime, text scanning, mutation tracking, translation rendering, hover/highlight logic, recording timer.
 - `src/options/main.ts`: settings and records UI behavior.
 - `src/lib/alignment.ts`: reusable alignment sanitization and validation logic.
@@ -235,6 +236,7 @@ navigation starts so new documents start with the default `翻译本页` action 
 IndexedDB stores:
 
 - `translation_cache`: cached translation blocks keyed by alignment-contract version, source text plus adjacent context hash, source language, target language, base URL, model, and strict/tolerant output mode.
+- `dictionary_cache`: cached dictionary lookup results keyed by provider, edition, source language, target language, and normalized word.
 - `word_records`: aggregate records keyed by normalized word, source language, and target language.
 - `word_events`: per-hover-hit event history keyed back to the aggregate record.
 

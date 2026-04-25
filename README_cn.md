@@ -176,7 +176,7 @@ options page
 
 ## 开发
 
-使用仓库脚本和本地依赖。项目已经有脚本时，避免使用临时全局工具替代。
+使用仓库脚本和本地依赖。项目已经有脚本时，避免使用临时全局工具替代。TypeScript 构建会开启严格的未使用代码检查。`package.json` 也保留了 `rollup@2.80.0` 的 npm override，因为 `@crxjs/vite-plugin@2.4.0` 依赖较旧且存在漏洞的 Rollup 2 构建。
 
 ```bash
 npm install --cache .npm-cache
@@ -207,6 +207,12 @@ npm run test:unit
 ```
 
 当前覆盖 alignment 校验、translated-part provider schema、source-span 处理、tolerant output 恢复、字典 provider 解析、OpenRouter header 兼容、JSON 提取、设置归一化和 CSV 转义。
+
+依赖审计：
+
+```bash
+npm audit --cache .npm-cache
+```
 
 构建验证：
 
