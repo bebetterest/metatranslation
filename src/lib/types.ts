@@ -71,9 +71,34 @@ export interface TranslationResponse {
   diagnostics?: TranslationDiagnostics;
 }
 
+export type TranslationDiagnosticFailureReason =
+  | 'parse_error'
+  | 'missing_blocks_array'
+  | 'missing_output_id'
+  | 'duplicate_output_id'
+  | 'unexpected_output_id'
+  | 'missing_output_block'
+  | 'invalid_output_block';
+
+export type TranslationDiagnosticFailureCounts = Partial<Record<TranslationDiagnosticFailureReason, number>>;
+
+export interface AlignmentCoverageDiagnostics {
+  acceptedBlocks: number;
+  alignedBlocks: number;
+  unalignedBlocks: number;
+  sourceSpansTotal: number;
+  sourceSpansAligned: number;
+  sourceSpanCoverage: number;
+  targetCharsTotal: number;
+  targetCharsAligned: number;
+  targetCharCoverage: number;
+}
+
 export interface TranslationDiagnostics {
   outputFailures: number;
   lastOutputError: string;
+  failureCounts: TranslationDiagnosticFailureCounts;
+  alignmentCoverage: AlignmentCoverageDiagnostics;
 }
 
 export interface DictionaryLookupRequest {

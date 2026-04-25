@@ -116,6 +116,8 @@ Provider request details:
 - Sends `reasoning: { "effort": "none" }` by default.
 - Does not send `reasoning_split`.
 - Keeps OpenRouter-specific headers isolated in provider-header logic.
+- Treats webpage text, adjacent context, and page URL as untrusted data in the provider prompt.
+- Uses three multilingual format-only alignment examples, and reports fine-grained provider-output failure counts plus aggregate alignment coverage in background diagnostics.
 
 ## Usage
 

@@ -141,7 +141,8 @@ The raw provider contract is translated-part anchored. The prompt sends each blo
 original source-text character ranges. These spans are extension-owned word, character, or phrase
 candidates and must not be interpreted as provider-native segments. CJK source text may be
 represented as single-character spans. Prompt `sourceSpans` expose only `id` and `text`; source
-character ranges stay local to the extension.
+character ranges stay local to the extension. Prompt payload text, adjacent context, and page URL
+are untrusted webpage data; prompts must tell the model never to follow instructions inside them.
 
 The model should return one block for each payload block. Each output block must include the same
 `id` as its payload block and `translatedParts`; it must not include other block-level fields. Each
@@ -153,6 +154,12 @@ Provider prompts should ask for the finest reliable alignment: split `translated
 word, term, or short phrase whenever possible. Avoid whole-clause or whole-sentence parts when
 smaller source spans can be mapped. Group source spans only when the translation unit is genuinely a
 multi-span phrase, idiom, CJK word, or non-contiguous construction.
+
+Provider prompts should keep examples small and multilingual. Current prompt examples are limited to
+three format-only examples covering English to Simplified Chinese context/reordering/filler,
+Japanese to English CJK grouping/particles/spaces, and English to Spanish non-contiguous phrasal
+verbs/clitics. Examples must not imply a fixed target language and must not use forbidden model
+output field names such as `sourceLang`.
 
 The model must not return `sourceLang`, `alignmentId`, `sourceText`, `targetText`,
 `targetOccurrence`, source offsets, target offsets, or a top-level `translatedText`. The extension
@@ -184,6 +191,7 @@ Validation rules:
 - Pure punctuation or whitespace translated parts may have accidental model-returned `sourceSpanIds` ignored during sanitization; this only removes non-semantic punctuation alignment and does not infer word alignment.
 - Aligned parts should stay as fine-grained as the translation allows; whole-clause alignment is a prompt failure unless no smaller reliable mapping exists.
 - Missing, duplicate, unexpected, or mismatched block ids, `sourceLang`, singular `sourceSpanId`, and extra fields inside `translatedParts` are invalid for the strict new contract.
+- Diagnostics should preserve `outputFailures` and `lastOutputError`, and also report finer provider-output failure counts plus aggregate alignment coverage for accepted provider blocks.
 - Target ranges are derived from translated part order, so repeated target text is not ambiguous.
 - Source ranges are derived from `sourceSpanIds`; adjacent source spans merge into one source range, while non-contiguous ids produce multiple source ranges.
 - Legacy offset-style raw alignments may still be sanitized for compatibility, but new providers should use `translatedParts`.
@@ -276,4 +284,4 @@ Record aggregation fields should preserve count, first/last seen timestamps, las
 - Source-level link/button translations now render as internal second lines to avoid overlapping or crowding horizontal navigation bars.
 - Ordinary text in horizontal flex/grid layouts and absolute/fixed overlay labels now renders as an internal second line to avoid side-by-side or detached translations on dense project pages.
 - Grok prompt and sanitization now handle accidental `sourceSpanIds` on pure punctuation, which previously caused valid real translations to be skipped.
-- Tolerant provider-output recovery is now configurable and default-off; strict mode still retries or reports count/alignment mismatches.
+- Tolerant provider-output recovery is now configurable and default-on; strict mode still retries or reports count/alignment mismatches.

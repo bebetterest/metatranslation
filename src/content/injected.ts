@@ -102,6 +102,37 @@ export function contentRuntimeBootstrap() {
     alignments: AlignmentSpan[];
   };
 
+  type TranslationDiagnostics = {
+    outputFailures: number;
+    lastOutputError: string;
+    failureCounts: Partial<Record<
+      | 'parse_error'
+      | 'missing_blocks_array'
+      | 'missing_output_id'
+      | 'duplicate_output_id'
+      | 'unexpected_output_id'
+      | 'missing_output_block'
+      | 'invalid_output_block',
+      number
+    >>;
+    alignmentCoverage: {
+      acceptedBlocks: number;
+      alignedBlocks: number;
+      unalignedBlocks: number;
+      sourceSpansTotal: number;
+      sourceSpansAligned: number;
+      sourceSpanCoverage: number;
+      targetCharsTotal: number;
+      targetCharsAligned: number;
+      targetCharCoverage: number;
+    };
+  };
+
+  type TranslationResponse = {
+    blocks: TranslationResultBlock[];
+    diagnostics?: TranslationDiagnostics;
+  };
+
   type ExtensionSettings = {
     baseUrl: string;
     apiKey: string;
@@ -588,13 +619,7 @@ export function contentRuntimeBootstrap() {
           const requestChunk = requestChunks[chunkIndex];
 
           try {
-            const response = await sendMessageToBackground<{
-              blocks: TranslationResultBlock[];
-              diagnostics?: {
-                outputFailures: number;
-                lastOutputError: string;
-              };
-            }>({
+            const response = await sendMessageToBackground<TranslationResponse>({
               type: 'translation:translate-blocks',
               payload: {
                 targetLang: settings?.targetLang ?? 'zh-CN',

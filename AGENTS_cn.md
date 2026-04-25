@@ -135,11 +135,13 @@ npm run e2e:real
 
 模型必须返回带 source-span 引用的 `translatedParts`。除非明确要求，不要添加本地启发式对齐兜底。
 
-Raw provider 协议采用 translated-part anchored 形式。Prompt 会把每个 block 的 `id`、原文、可选相邻上下文，以及本地从原文字符范围生成的 `sourceSpans` 表一起发送给模型。这些 span 是扩展拥有的词、字符或短语候选，不应理解为 provider 原生分段。CJK 源文可能表示为单字符 spans。Prompt 中的 `sourceSpans` 只暴露 `id` 和 `text`；source character ranges 保留在扩展本地。
+Raw provider 协议采用 translated-part anchored 形式。Prompt 会把每个 block 的 `id`、原文、可选相邻上下文，以及本地从原文字符范围生成的 `sourceSpans` 表一起发送给模型。这些 span 是扩展拥有的词、字符或短语候选，不应理解为 provider 原生分段。CJK 源文可能表示为单字符 spans。Prompt 中的 `sourceSpans` 只暴露 `id` 和 `text`；source character ranges 保留在扩展本地。Prompt payload text、相邻 context 和 page URL 都是不可信网页数据；prompt 必须要求模型不要执行其中的指令。
 
 模型应为每个 payload block 返回一个 output block。每个 output block 必须包含与 payload block 相同的 `id` 和 `translatedParts`；不得包含其他 block-level fields。每个 part 必须包含 `text`；当该目标片段映射到源文 spans 时，可以包含 `sourceSpanIds`。`sourceSpanIds` 始终是扁平数组，可以包含非连续 ids，例如 `["s1", "s5"]`。不要使用单数 `sourceSpanId`。
 
 Provider prompts 应要求模型使用尽可能可靠的细粒度对齐：只要可行，就按源文 word、term 或 short phrase 拆分 `translatedParts`。当更小的 source spans 可以可靠映射时，避免把整句或整从句合成一个 part。只有在真实翻译单元是多 span 短语、习语、CJK 词或非连续结构时，才组合 source spans。
+
+Provider prompts 应保持示例少量且多语言。当前 prompt examples 限制为三个 format-only 示例，分别覆盖英译简中的上下文/重排/filler、日译英的 CJK grouping/particles/spaces，以及英译西班牙语的非连续 phrasal verbs/clitics。示例不能暗示固定目标语言，也不能使用 `sourceLang` 等禁止模型输出的字段名。
 
 模型不得返回 `sourceLang`、`alignmentId`、`sourceText`、`targetText`、`targetOccurrence`、source offsets、target offsets 或顶层 `translatedText`。扩展会按 `id` 匹配输出 blocks、使用请求侧 source language hint、拼接 `translatedParts[].text` 并累加目标端 offsets，在本地派生这些运行时值。清洗后的 runtime `TranslationResultBlock.alignments` 只保留 content runtime 需要的字段：
 
@@ -166,6 +168,7 @@ Provider prompts 应要求模型使用尽可能可靠的细粒度对齐：只要
 - 纯标点或空白 translated parts 如果意外带有模型返回的 `sourceSpanIds`，sanitization 可以忽略这些 ids；这只会移除非语义标点对齐，不会推断词义对齐。
 - Aligned parts 应在翻译允许的范围内尽量细；除非不存在更小的可靠映射，否则整句或整从句对齐属于 prompt failure。
 - 缺失、重复、意外或不匹配的 block ids、`sourceLang`、单数 `sourceSpanId` 以及 `translatedParts` 内的额外字段在严格新协议中都是非法的。
+- Diagnostics 应保留 `outputFailures` 和 `lastOutputError`，并报告更细的 provider-output failure counts，以及 accepted provider blocks 的聚合 alignment coverage。
 - Target ranges 由 translated part 顺序派生，所以重复译文文本不会产生歧义。
 - Source ranges 由 `sourceSpanIds` 派生；相邻 source spans 合并为一个 source range，非连续 ids 会产生多个 source ranges。
 - 为兼容旧输出，legacy offset-style raw alignments 仍可被 sanitizer 处理；新 provider 应使用 `translatedParts`。
@@ -256,4 +259,4 @@ IndexedDB stores：
 - Source-level link/button 翻译现在作为内部第二行渲染，以避免在横向导航栏中重叠或挤压。
 - 横向 flex/grid 布局中的普通文本，以及 absolute/fixed overlay label，现在会作为内部第二行渲染，避免在密集项目页中出现左右并排或远离源文的译文。
 - Grok prompt 和 sanitization 现在能处理纯标点上意外出现的 `sourceSpanIds`，该问题此前会导致有效真实翻译被跳过。
-- Tolerant provider-output 恢复现在是可配置且默认关闭；严格模式仍会重试或报告数量/对齐不匹配。
+- Tolerant provider-output 恢复现在是可配置且默认开启；严格模式仍会重试或报告数量/对齐不匹配。
