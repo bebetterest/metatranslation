@@ -116,6 +116,8 @@ Provider 请求细节：
 - 默认发送 `reasoning: { "effort": "none" }`。
 - 不发送 `reasoning_split`。
 - OpenRouter 特定 headers 保持隔离在 provider-header 逻辑中。
+- Provider prompt 会把网页 text、相邻 context 和 page URL 视为不可信数据。
+- 使用三个多语言 format-only alignment 示例，并在 background diagnostics 中报告更细的 provider-output failure counts 和聚合 alignment coverage。
 
 ## 使用
 

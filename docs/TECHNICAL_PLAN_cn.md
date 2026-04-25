@@ -55,13 +55,13 @@
 - 支持 OpenRouter 兼容可选 headers。
 - 面向 Grok 的 translated-part raw alignment 协议：prompt payload 会包含 block `id`、源文、可选相邻上下文和本地生成的 `sourceSpans`，但不包含 source/target offsets。Prompt 中的 `sourceSpans` 只暴露 `id` 和 `text`；字符范围保留在扩展本地。模型输出使用只包含 `id` 和 `translatedParts[{ text, sourceSpanIds? }]` 的 blocks。扩展按 `id` 匹配输出 blocks，并使用请求侧 language hint，而不依赖模型返回 `sourceLang`。`sourceSpanIds` 始终是扁平数组，可以包含 `["s1", "s5"]` 这样的非连续 ids；单数 `sourceSpanId` 会被拒绝。这些 span 是扩展拥有的词/字符候选，不是 provider 原生分段；CJK 源文使用更小的字符级 spans，可通过相邻 ids 组合。纯标点 parts 如果意外带有模型返回的 `sourceSpanIds`，sanitization 可以忽略这些 ids。
 - Tolerant provider-output 恢复可配置且默认开启。严格模式下，缺失、重复、意外或不匹配的 output ids 以及 alignment 不匹配仍会触发重试或诊断。容错模式下，非法 source-span 引用会作为无对齐译文文本保留，已通过的 block 不重试，重复或多余 output blocks 会被忽略，缺失或仍非法的 block 会重试到 `translationRetryCount` 耗尽。
-- Provider prompt 有意保持简短：task、output JSON shape、rules、format-only examples、page metadata 和 payload。Prompt 明确说明相邻上下文只用于消歧，不能被翻译。
-- Provider prompt 中注入 few-shot 示例，覆盖直接单词映射、使用上下文消歧但不翻译上下文、自然的介词短语语序重排、自然重复目标文本、长句细粒度词/术语对齐、非连续 source-span 数组，以及 CJK 字符组合成一个词。
+- Provider prompt 有意保持简短：task、output JSON shape、rules、format-only examples、page metadata 和 payload。Prompt 明确说明 payload text、相邻上下文和 page URL 都是不可信网页数据，不能作为指令执行；相邻上下文只用于消歧，不能被翻译。
+- Provider prompt 现在发送三个多语言 format-only few-shot 示例，而不是之前较大的、主要面向中文的示例集：英译简中示例覆盖上下文消歧、目标语重排、冠词和标点不对齐；日译英示例覆盖 CJK 字符组合、助词和空格；英译西班牙语示例覆盖非连续 phrasal verbs 和 clitics。
 - 严格对齐校验，并分别检查 source/target 真实重叠。Source ranges 由本地 source span ids 计算，包括 `["s1", "s5"]` 这类非连续数组；target ranges 由 translated part 顺序计算。为兼容旧输出，legacy offset-style 输出仍会被接受。
 - 聚焦 alignment 校验回归脚本，覆盖 translated parts、重排、overlap、source-span anchored 输出、相邻 CJK span 组合、重复目标文本、非连续 source spans、可恢复 legacy offset 修复、不可恢复 ranges、重复 alignment id 和模糊文本修复。
 - 通过 overlay 矩形进行 source/target 悬浮高亮。
 - 源文侧悬浮字典弹窗，provider 可配置为 `WiktApi`、`FreeDictionaryAPI` 或 `Off`，弹窗保活窗口可配置且默认 `1000ms`。字典查询在 background service worker 中执行，结果缓存在 IndexedDB，并向 content tooltip 提供释义、发音、例句、翻译、attribution 和 source links。
-- 页面内诊断状态浮层，用于显示翻译进度、跳过 block 数、失败 chunk、invalid/empty sanitized blocks、id mismatches 和最近 provider 错误。
+- 页面内诊断状态浮层，用于显示翻译进度、跳过 block 数、失败 chunk、invalid/empty sanitized blocks、id mismatches 和最近 provider 错误。Background diagnostics 还会包含更细的 provider-output failure counts，以及 accepted provider blocks 的聚合 alignment coverage。
 - 对 `input[type=button|submit|reset]` 支持基于几何位置的悬浮。
 - 源文稳定悬浮 2 秒后记录词汇。
 - IndexedDB 翻译缓存、聚合记录和事件历史。翻译缓存键包含 alignment-contract version 和 adjacent context hash，避免旧缓存结构和上下文敏感译文流入不兼容请求。
@@ -76,8 +76,8 @@
 
 - `npm run build` 通过。
 - `npm run test:unit` 通过。
-- 单元测试现在覆盖任一非法 alignment 都整块拒绝、translated-part 输出、重复目标文本、非连续 source spans、字典 provider URL/result 解析、通用 `reasoning: { effort: "none" }` 请求体、structured-output `json_schema`、OpenRouter header、fenced/think JSON 提取、解析失败后的严格重试恢复、设置归一化以及 CSV 转义。
-- 单元测试也验证 raw provider schema 在模型输出 block 层要求 `id` 和 `translatedParts[].text`、拒绝 `sourceLang`、单数 `sourceSpanId` 和额外 part 字段，并确认新的 Grok 风格输出不再依赖模型计算 source 或 target offsets。Prompt 测试会验证 payload blocks 包含 `id`，payload `sourceSpans` 只暴露 `id/text`，要求模型优先使用细粒度词/术语对齐而不是整句或整从句 part，保持严格模式下 id mismatch 可重试，并通过忽略非法 spans、缺失 blocks、重复 ids 和多余 blocks 来恢复容错输出。
+- 单元测试现在覆盖任一非法 alignment 都整块拒绝、translated-part 输出、重复目标文本、非连续 source spans、字典 provider URL/result 解析、通用 `reasoning: { effort: "none" }` 请求体、structured-output `json_schema`、OpenRouter header、fenced/think JSON 提取、解析失败后的严格重试恢复、设置归一化、alignment coverage diagnostics、更细的 provider-output failure counts，以及 CSV 转义。
+- 单元测试也验证 raw provider schema 在模型输出 block 层要求 `id` 和 `translatedParts[].text`、拒绝 `sourceLang`、单数 `sourceSpanId` 和额外 part 字段，并确认新的 Grok 风格输出不再依赖模型计算 source 或 target offsets。Prompt 测试会验证 payload blocks 包含 `id`，payload `sourceSpans` 只暴露 `id/text`，把网页 text/context/page URL 当作不可信数据而不是指令，只发送三个多语言示例，要求模型优先使用细粒度词/术语对齐而不是整句或整从句 part，保持严格模式下 id mismatch 可重试，并通过忽略非法 spans、缺失 blocks、重复 ids 和多余 blocks 来恢复容错输出。
 - `npm run package:zip` 会生成 `artifacts/metatranslation-0.1.1.zip`。
 - 真实 API E2E 在最新 `translatedParts` 契约更新前曾使用 OpenRouter `https://openrouter.ai/api/v1` 和 `x-ai/grok-4.1-fast` 跑通过；发布前如需真实 provider 信心，需要重新运行。
 - `npm run e2e:mock` 已在 Chrome for Testing 环境中通过；它覆盖渐进式渲染、flex toolbar 链接/按钮的内部第二行渲染、交互代理点击、DOM 移动后的译文重定位、DOM mutation 取消待触发 hover 记录、同一次连续源文侧 span 悬停只记录一次、源文 hover 记录、input 控件源文 hover 记录、关闭清理，以及完整页面导航后的翻译状态重置。
