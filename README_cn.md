@@ -74,7 +74,7 @@ metatranslation 是一个 Chromium Manifest V3 扩展，面向仍然需要保留
 | 渲染 | 源 DOM 文本保持原位。译文节点继承源文本样式，并可在关闭时清理。密集 flex/grid 和 overlay label 使用内部第二行渲染。 |
 | 翻译 | OpenAI 兼容 provider 调用，使用 structured JSON schema 输出，并支持配置目标语言、上下文窗口、并发、chunk size、超时和重试次数。 |
 | 对齐 | 模型返回 `translatedParts[].sourceSpanIds`；扩展在本地派生运行时 source/target ranges。支持严格和容错校验模式。 |
-| 字典 | 源文悬浮字典弹窗可使用 WiktApi、FreeDictionaryAPI 或关闭。字典结果会归一化并本地缓存。 |
+| 字典 | 源文悬浮字典弹窗可使用 WiktApi、FreeDictionaryAPI 或关闭。字典查询会保留原词大小写，拉丁词先查英文再回退到全语言查询，全语言结果会按可能的源语言排序，并本地缓存归一化结果。 |
 | 记录 | 源文侧稳定悬浮 2 秒后记录词汇命中、聚合次数、最近上下文、URL 和事件历史。 |
 | 导出 | Records CSV 导出包含 UTF-8 BOM，并中和来自不可信页面文本的电子表格公式前缀。 |
 | 诊断 | 页面内状态面板和 background diagnostics 会展示 skipped blocks、failed chunks、provider-output failure categories 和 alignment coverage。 |
@@ -138,7 +138,6 @@ npm run build
 | `Retry Count` | `2` | 首次失败或非法模型调用后的重试次数；`0` 关闭 retry passes。 |
 | `Tolerant Provider Output` | 开启 | 当模型 JSON 有瑕疵但可安全恢复时，保留有效文本；排查严格 provider 契约时可关闭。 |
 | `Dictionary Provider` | `WiktApi` | `WiktApi`、`FreeDictionaryAPI` 或 `Off`。 |
-| `WiktApi Edition` | `en` | WiktApi 查询使用的 Wiktionary edition。 |
 | `Dictionary Hover Hold (ms)` | `1000` | 鼠标从源文移动到字典弹窗时的保活窗口；`0` 表示立即关闭。 |
 
 Provider 请求细节：

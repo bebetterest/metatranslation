@@ -93,7 +93,7 @@ const providerSettings = {
   contextWindowChars: Number(process.env.PAGE_SMOKE_CONTEXT_WINDOW_CHARS ?? 100),
   translationRetryCount: Number(process.env.PAGE_SMOKE_TRANSLATION_RETRY_COUNT ?? 2),
   dictionaryProvider: process.env.PAGE_SMOKE_DICTIONARY_PROVIDER ?? 'wiktapi',
-  dictionaryEdition: process.env.PAGE_SMOKE_DICTIONARY_EDITION ?? 'en',
+  dictionaryEdition: 'en',
   dictionaryHoverHoldMs: Number(process.env.PAGE_SMOKE_DICTIONARY_HOVER_HOLD_MS ?? 1000),
   tolerantProviderOutput: process.env.PAGE_SMOKE_TOLERANT_PROVIDER_OUTPUT !== '0',
 };

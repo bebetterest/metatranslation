@@ -79,7 +79,6 @@ const model = process.env.REAL_TEST_MODEL ?? 'x-ai/grok-4.1-fast';
 const targetLang = process.env.REAL_TEST_TARGET_LANG ?? 'zh-CN';
 const translationRetryCount = Number(process.env.REAL_TEST_TRANSLATION_RETRY_COUNT ?? 2);
 const dictionaryProvider = process.env.REAL_TEST_DICTIONARY_PROVIDER ?? 'wiktapi';
-const dictionaryEdition = process.env.REAL_TEST_DICTIONARY_EDITION ?? 'en';
 const dictionaryHoverHoldMs = Number(process.env.REAL_TEST_DICTIONARY_HOVER_HOLD_MS ?? 1000);
 const port = Number(process.env.REAL_TEST_PORT ?? 9340);
 const extensionDir = path.resolve('dist');
@@ -155,7 +154,6 @@ try {
     targetLang,
     translationRetryCount,
     dictionaryProvider,
-    dictionaryEdition,
     dictionaryHoverHoldMs,
     tolerantProviderOutput,
   });
@@ -698,7 +696,6 @@ async function configureExtension(optionsClient, settings) {
       document.querySelector('#context-window-chars').value = '100';
       document.querySelector('#translation-retry-count').value = ${JSON.stringify(String(settings.translationRetryCount))};
       document.querySelector('#dictionary-provider').value = ${JSON.stringify(settings.dictionaryProvider)};
-      document.querySelector('#dictionary-edition').value = ${JSON.stringify(settings.dictionaryEdition)};
       document.querySelector('#dictionary-hover-hold-ms').value = ${JSON.stringify(String(settings.dictionaryHoverHoldMs))};
       document.querySelector('#tolerant-provider-output').checked = ${JSON.stringify(settings.tolerantProviderOutput)};
       document.querySelector('#settings-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));

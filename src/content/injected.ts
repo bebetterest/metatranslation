@@ -1749,6 +1749,7 @@ export function contentRuntimeBootstrap() {
       block.translation.sourceLang,
       settings.targetLang,
       normalizedWord,
+      sourceWord,
     ].join('::');
     const signature = `${block.id}:${block.revision}:${alignmentId}:${lookupKey}`;
 
