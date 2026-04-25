@@ -254,7 +254,7 @@ export function contentRuntimeBootstrap() {
         .then((currentEnabled) => sendResponse({ ok: true, enabled: currentEnabled }))
         .catch((error: unknown) =>
           sendResponse({
-            error: error instanceof Error ? error.message : 'Toggle failed.',
+            error: error instanceof Error ? error.message : getUiMessage('runtimeToggleFailed'),
           }),
         );
       return true;
@@ -290,7 +290,7 @@ export function contentRuntimeBootstrap() {
     ensureStyle();
     ensureHighlightLayer();
     ensureStatusPanel();
-    updateStatusPanel('Scanning page...');
+    updateStatusPanel(getUiMessage('statusScanningPage'));
     enabled = true;
     currentHref = location.href;
     cleanupAllBlocks();
@@ -540,9 +540,11 @@ export function contentRuntimeBootstrap() {
 
     if (newBlocks.length > 0) {
       runtimeStats.discovered += newBlocks.length;
-      updateStatusPanel(`Found ${runtimeStats.discovered} text blocks. Translating...`);
+      updateStatusPanel(
+        getUiMessage('statusFoundBlocksTranslating', String(runtimeStats.discovered)),
+      );
     } else if (blocksById.size === 0) {
-      updateStatusPanel('No safe text blocks found on this page.');
+      updateStatusPanel(getUiMessage('statusNoBlocks'));
     }
 
     if (newBlocks.length > 0) {
@@ -567,7 +569,7 @@ export function contentRuntimeBootstrap() {
     const requestChunkSize = normalizePositiveInteger(settings.requestChunkSize, 1);
     const requestConcurrency = normalizePositiveInteger(settings.requestConcurrency, 64);
     runtimeStats.requested += states.length;
-    updateStatusPanel(buildStatusText('Translating...'));
+    updateStatusPanel(buildStatusText(getUiMessage('statusTranslatingPrefix')));
 
     translationQueue = translationQueue
       .catch(() => undefined)
@@ -700,7 +702,7 @@ export function contentRuntimeBootstrap() {
       runtimeStats.translated += 1;
     }
 
-    updateStatusPanel(buildStatusText('Translation updated'));
+    updateStatusPanel(buildStatusText(getUiMessage('statusTranslationUpdatedPrefix')));
   }
 
   function collectCandidateElements(root: Element): Element[] {
@@ -1791,7 +1793,11 @@ export function contentRuntimeBootstrap() {
   function renderDictionaryLoading(word: string, block: BlockState, alignmentId: string): void {
     const tooltip = ensureDictionaryTooltip();
     tooltip.replaceChildren(
-      buildDictionaryHeader(word, settings?.dictionaryProvider ?? 'off', 'Loading dictionary...'),
+      buildDictionaryHeader(
+        word,
+        settings?.dictionaryProvider ?? 'off',
+        getUiMessage('dictionaryLoading'),
+      ),
     );
     positionDictionaryTooltip(block, alignmentId);
   }
@@ -1808,7 +1814,7 @@ export function contentRuntimeBootstrap() {
     if (result.entries.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'dlt-dictionary-empty';
-      empty.textContent = 'No dictionary entry found.';
+      empty.textContent = getUiMessage('dictionaryEmpty');
       tooltip.replaceChildren(header, empty, buildDictionaryFooter(result));
       positionDictionaryTooltip(block, alignmentId);
       return;
@@ -1826,12 +1832,16 @@ export function contentRuntimeBootstrap() {
 
   function renderDictionaryError(error: unknown, block: BlockState, alignmentId: string): void {
     const tooltip = ensureDictionaryTooltip();
-    const message = error instanceof Error ? error.message : 'Dictionary lookup failed.';
+    const message = error instanceof Error ? error.message : getUiMessage('dictionaryLookupFailed');
     const body = document.createElement('div');
     body.className = 'dlt-dictionary-empty';
     body.textContent = truncateStatusText(message);
     tooltip.replaceChildren(
-      buildDictionaryHeader('Dictionary', settings?.dictionaryProvider ?? 'off', 'Lookup failed'),
+      buildDictionaryHeader(
+        getUiMessage('dictionaryTitle'),
+        settings?.dictionaryProvider ?? 'off',
+        getUiMessage('dictionaryLookupFailedTitle'),
+      ),
       body,
     );
     positionDictionaryTooltip(block, alignmentId);
@@ -1882,7 +1892,10 @@ export function contentRuntimeBootstrap() {
     if (entry.translations.length > 0) {
       const translations = document.createElement('p');
       translations.className = 'dlt-dictionary-translations';
-      translations.textContent = `Translations: ${entry.translations.slice(0, 5).join(', ')}`;
+      translations.textContent = getUiMessage(
+        'dictionaryTranslationsLabel',
+        entry.translations.slice(0, 5).join(', '),
+      );
       item.append(translations);
     }
 
@@ -1905,7 +1918,7 @@ export function contentRuntimeBootstrap() {
       link.href = result.sourceUrl;
       link.target = '_blank';
       link.rel = 'noreferrer';
-      link.textContent = 'Open dictionary';
+      link.textContent = getUiMessage('dictionaryOpenDictionary');
       footer.append(link);
     }
 
@@ -2356,22 +2369,34 @@ export function contentRuntimeBootstrap() {
   function buildStatusText(prefix: string): string {
     const parts = [
       `${prefix}`,
-      `${runtimeStats.translated}/${runtimeStats.requested} rendered`,
+      getUiMessage('statusRenderedCount', [
+        String(runtimeStats.translated),
+        String(runtimeStats.requested),
+      ]),
     ];
 
     if (runtimeStats.skipped > 0) {
-      parts.push(`${runtimeStats.skipped} skipped by invalid or empty model output`);
+      parts.push(getUiMessage('statusSkippedInvalid', String(runtimeStats.skipped)));
     }
 
     if (runtimeStats.failed > 0) {
-      parts.push(`${runtimeStats.failed} failed`);
+      parts.push(getUiMessage('statusFailedCount', String(runtimeStats.failed)));
     }
 
     if (runtimeStats.lastError) {
-      parts.push(`Last error: ${runtimeStats.lastError}`);
+      parts.push(getUiMessage('statusLastError', runtimeStats.lastError));
     }
 
     return parts.join(' · ');
+  }
+
+  function getUiMessage(key: string, substitutions?: string | string[]): string {
+    try {
+      const message = chrome.i18n.getMessage(key, substitutions);
+      return message || key;
+    } catch {
+      return key;
+    }
   }
 
   function ensureChromeBridge(): void {
@@ -2453,7 +2478,7 @@ export function contentRuntimeBootstrap() {
   function reportRuntimeError(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
     runtimeStats.lastError = truncateStatusText(message);
-    updateStatusPanel(buildStatusText('Translation error'));
+    updateStatusPanel(buildStatusText(getUiMessage('statusTranslationErrorPrefix')));
     console.error('[metatranslation]', error);
   }
 

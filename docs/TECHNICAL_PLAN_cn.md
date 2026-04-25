@@ -46,6 +46,7 @@
 - tab 激活或 focused window 变化时会刷新右键菜单状态，使全局菜单项反映当前 tab，而不是上一个已翻译 tab。
 - 完整页面导航会重置手动翻译状态，使新加载文档从默认 `翻译本页` 右键菜单动作开始。
 - Background 只保留当前文档生命周期内的轻量 enabled-tab 状态，并在完整页面导航开始时清理。
+- Chrome i18n `_locales` 为 manifest、action title、右键菜单、Options 页面、页面内诊断和字典弹窗提供英文与简体中文 UI 文案。界面语言跟随浏览器 UI locale，并与配置的翻译 `targetLang` 保持独立。
 - 支持可配置 chunk size、parallel request count、adjacent context length 和 retry count 的渐进式并发翻译。默认值是 chunk size `1`、parallel requests `64`、context window chars `100`、retry count `2`。
 - 目标语言可配置，默认 `zh-CN`（中文），并且配置值会作为权威目标语言注入 provider prompts；对已知语言会附带人类可读描述。
 - OpenAI 兼容的 `chat/completions` 请求。
@@ -65,7 +66,7 @@
 - 对 `input[type=button|submit|reset]` 支持基于几何位置的悬浮。
 - 源文稳定悬浮 2 秒后记录词汇。
 - IndexedDB 翻译缓存、聚合记录和事件历史。翻译缓存键包含 alignment-contract version 和 adjacent context hash，避免旧缓存结构和上下文敏感译文流入不兼容请求。
-- Options 页面设置、记录搜索/排序和带 UTF-8 BOM 且中和公式前缀的 CSV 导出。
+- Options 页面设置、本地化 helper text、记录搜索/排序和带 UTF-8 BOM 且中和公式前缀的 CSV 导出。
 - 版本化 zip 打包。
 - GitHub Actions release 自动化会检测 `main` 上 `package.json` 的 version 变化，校验 lockfile 版本，运行单元检查，打包扩展，创建 `v<version>` tag，并把 zip 发布到 GitHub Releases。
 - Mock provider 浏览器 E2E 包装脚本，可在不消耗真实 API quota 的情况下进行完整扩展回归。
@@ -76,11 +77,11 @@
 
 ## 验证状态
 
-- `npm run build` 通过。
+- `npm run build` 通过，包括英文和简体中文 Chrome i18n locale bundles。
 - `npm run test:unit` 通过。
 - `npm test` 通过。
 - `npm audit --cache .npm-cache` 在 Rollup override 后报告 0 个漏洞。
-- 单元测试现在覆盖任一非法 alignment 都整块拒绝、translated-part 输出、重复目标文本、非连续 source spans、字典 provider URL/result 解析、通用 `reasoning: { effort: "none" }` 请求体、structured-output `json_schema`、OpenRouter header、fenced/think JSON 提取、解析失败后的严格重试恢复、设置归一化、alignment coverage diagnostics、更细的 provider-output failure counts，以及 CSV 转义。
+- 单元测试现在覆盖任一非法 alignment 都整块拒绝、translated-part 输出、重复目标文本、非连续 source spans、字典 provider URL/result 解析、通用 `reasoning: { effort: "none" }` 请求体、structured-output `json_schema`、OpenRouter header、fenced/think JSON 提取、解析失败后的严格重试恢复、设置归一化、alignment coverage diagnostics、更细的 provider-output failure counts、CSV 转义，以及 i18n locale 完整性。
 - 单元测试也验证 raw provider schema 在模型输出 block 层要求 `id` 和 `translatedParts[].text`、拒绝 `sourceLang`、单数 `sourceSpanId` 和额外 part 字段，并确认新的 Grok 风格输出不再依赖模型计算 source 或 target offsets。Prompt 测试会验证 payload blocks 包含 `id`，payload `sourceSpans` 只暴露 `id/text`，把网页 text/context/page URL 当作不可信数据而不是指令，只发送三个多语言示例，要求模型优先使用细粒度词/术语对齐而不是整句或整从句 part，保持严格模式下 id mismatch 可重试，并通过忽略非法 spans、缺失 blocks、重复 ids 和多余 blocks 来恢复容错输出。
 - `npm run package:zip` 会生成 `artifacts/metatranslation-0.1.2.zip`。
 - 真实 API E2E 在最新 `translatedParts` 契约更新前曾使用 OpenRouter `https://openrouter.ai/api/v1` 和 `x-ai/grok-4.1-fast` 跑通过；发布前如需真实 provider 信心，需要重新运行。

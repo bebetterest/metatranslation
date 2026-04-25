@@ -7,6 +7,7 @@ import type {
   SettingsGetResponse,
   SettingsSaveResponse,
 } from '../lib/messages';
+import { getUiLocale, getUiMessage } from '../lib/i18n';
 import type { ExtensionSettings, RecordSortMode, RecordsExportRow, WordRecord } from '../lib/types';
 
 const settingsForm = getElement<HTMLFormElement>('settings-form');
@@ -33,12 +34,22 @@ const dictionaryProviderInput = getElement<HTMLSelectElement>('dictionary-provid
 const dictionaryEditionInput = getElement<HTMLInputElement>('dictionary-edition');
 const dictionaryHoverHoldMsInput = getElement<HTMLInputElement>('dictionary-hover-hold-ms');
 
+const uiLocale = getUiLocale();
+const dateFormatter = new Intl.DateTimeFormat(uiLocale, {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
 let currentRecords: WordRecord[] = [];
 let searchTimer: number | null = null;
 
 void initialize();
 
 async function initialize(): Promise<void> {
+  applyLocalizedText();
   await loadSettings();
   await loadRecords();
 
@@ -70,7 +81,7 @@ async function initialize(): Promise<void> {
 }
 
 async function loadSettings(): Promise<void> {
-  setText(settingsStatus, '加载设置中...');
+  setText(settingsStatus, getUiMessage('settingsLoading'));
 
   try {
     const response = await sendMessage<SettingsGetResponse>({
@@ -85,7 +96,7 @@ async function loadSettings(): Promise<void> {
 }
 
 async function saveSettings(): Promise<void> {
-  setText(settingsStatus, '保存中...');
+  setText(settingsStatus, getUiMessage('settingsSaving'));
 
   try {
     const settings: ExtensionSettings = {
@@ -110,14 +121,14 @@ async function saveSettings(): Promise<void> {
     });
 
     fillSettings(response.settings);
-    setText(settingsStatus, '设置已保存');
+    setText(settingsStatus, getUiMessage('settingsSaved'));
   } catch (error) {
     setText(settingsStatus, getErrorMessage(error));
   }
 }
 
 async function loadRecords(): Promise<void> {
-  setText(recordsStatus, '加载记录中...');
+  setText(recordsStatus, getUiMessage('recordsLoading'));
 
   try {
     const response = await sendMessage<RecordsQueryResponse>({
@@ -153,7 +164,7 @@ function fillSettings(settings: ExtensionSettings): void {
 }
 
 function renderRecords(records: WordRecord[]): void {
-  recordCount.textContent = `${records.length} 条记录`;
+  recordCount.textContent = getUiMessage('recordCount', String(records.length));
   recordsBody.replaceChildren();
 
   if (records.length === 0) {
@@ -161,7 +172,7 @@ function renderRecords(records: WordRecord[]): void {
     const cell = document.createElement('td');
     cell.colSpan = 7;
     cell.className = 'empty';
-    cell.textContent = '当前没有符合条件的记录。';
+    cell.textContent = getUiMessage('recordsEmpty');
     row.append(cell);
     recordsBody.append(row);
     return;
@@ -195,7 +206,7 @@ function buildCell(content: string, className = ''): HTMLTableCellElement {
 
 function exportCsv(records: WordRecord[]): void {
   if (records.length === 0) {
-    setText(recordsStatus, '没有可导出的记录');
+    setText(recordsStatus, getUiMessage('recordsExportEmpty'));
     return;
   }
 
@@ -246,7 +257,26 @@ function exportCsv(records: WordRecord[]): void {
   anchor.download = `word-records-${new Date().toISOString().slice(0, 10)}.csv`;
   anchor.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
-  setText(recordsStatus, 'CSV 已导出');
+  setText(recordsStatus, getUiMessage('recordsExported'));
+}
+
+function applyLocalizedText(): void {
+  document.documentElement.lang = uiLocale;
+  for (const element of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
+    const key = element.dataset.i18n;
+    if (key) {
+      setText(element, getUiMessage(key));
+    }
+  }
+
+  for (const element of document.querySelectorAll<HTMLInputElement>('[data-i18n-placeholder]')) {
+    const key = element.dataset.i18nPlaceholder;
+    if (key) {
+      element.placeholder = getUiMessage(key);
+    }
+  }
+
+  recordCount.textContent = getUiMessage('recordCount', '0');
 }
 
 async function sendMessage<T>(message: object): Promise<T> {
@@ -258,7 +288,7 @@ async function sendMessage<T>(message: object): Promise<T> {
 }
 
 function formatDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleString();
+  return dateFormatter.format(new Date(timestamp));
 }
 
 function setText(element: HTMLElement, value: string): void {
@@ -266,7 +296,7 @@ function setText(element: HTMLElement, value: string): void {
 }
 
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : '未知错误';
+  return error instanceof Error ? error.message : getUiMessage('unknownError');
 }
 
 function getElement<TElement extends HTMLElement>(id: string): TElement {

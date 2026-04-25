@@ -61,6 +61,7 @@ Current release posture:
 - Validates translated-part model output before using hover alignments.
 - Keeps webpage text, adjacent context, and page URLs framed as untrusted data in provider prompts.
 - Supports source and target hover highlighting, source-hover dictionary lookup, and vocabulary recording.
+- Localizes the manifest, context menu, options page, in-page diagnostics, and dictionary popup in English and Simplified Chinese through Chrome i18n.
 - Stores settings in `chrome.storage.local` and cache or records data in IndexedDB.
 - Provides focused unit checks, browser smoke tests, mock-provider E2E, real-provider E2E, and package automation.
 
@@ -77,6 +78,7 @@ Current release posture:
 | Records | Stable 2-second source-side hover records vocabulary hits, aggregate counts, last seen context, URL, and event history. |
 | Export | Records CSV export includes a UTF-8 BOM and neutralizes spreadsheet formula prefixes from untrusted page text. |
 | Diagnostics | In-page status panel plus background diagnostics for skipped blocks, failed chunks, provider-output failure categories, and alignment coverage. |
+| UI Language | Extension UI follows the browser UI language. English is the default locale and Simplified Chinese is supported; this is independent of `Target Language`. |
 
 Unsupported in the current scope:
 
@@ -121,6 +123,8 @@ npm run build
 
 The extension calls an OpenAI-compatible `chat/completions` endpoint. A provider root URL such as `https://openrouter.ai/api/v1` is accepted; trailing slashes are trimmed and `/chat/completions` is appended unless already present.
 
+The extension UI language follows Chrome or Edge's UI language through `_locales`. Changing UI language does not change `Target Language`; that setting still controls the translation output sent to the provider prompt.
+
 | Option | Default | Notes |
 | --- | --- | --- |
 | `Base URL` | `https://openrouter.ai/api/v1` | OpenAI-compatible provider root or full chat completions URL. |
@@ -156,6 +160,7 @@ Provider request details:
 - Hover a source span for 2 seconds to record vocabulary when a valid alignment exists.
 - Hover a source span to open the dictionary popup when dictionary lookup is enabled.
 - Use the options page to search, sort, and export vocabulary records.
+- Use the browser UI language to switch extension UI between English and Simplified Chinese. Keep `Target Language` for translation output only.
 - If translation appears to do nothing, check the bottom-right diagnostic panel. No panel means the runtime did not inject; an error panel usually means provider failure; high skipped counts mean invalid or empty model output.
 
 ## Architecture
@@ -189,6 +194,7 @@ options page
 Key paths:
 
 - `manifest.config.ts`: MV3 manifest definition.
+- `public/_locales/*/messages.json`: English and Simplified Chinese UI strings for manifest, context menus, options, diagnostics, and dictionary popup.
 - `docs/assets/metatranslation-header.png`: README header image.
 - `src/background/index.ts`: service worker, action/context-menu handling, message routing, cache orchestration, records entrypoints.
 - `src/background/openai.ts`: OpenAI-compatible request builder, JSON extraction, retries, output validation.
@@ -198,6 +204,7 @@ Key paths:
 - `src/lib/alignment.ts`: alignment sanitization and validation.
 - `src/lib/sourceSpans.ts`: source-span generation for provider prompts.
 - `src/lib/settings.ts`: settings normalization.
+- `src/lib/i18n.ts`: shared options/background helper for Chrome i18n message lookup.
 - `src/options/main.ts`: options and records UI behavior.
 - `scripts/`: build, packaging, unit, smoke, mock E2E, real E2E, and live-page smoke helpers.
 - `docs/TECHNICAL_PLAN.md`: current technical route, validation status, risks, and next steps.
@@ -231,7 +238,7 @@ Common commands:
 
 | Layer | Command | Purpose |
 | --- | --- | --- |
-| Focused unit checks | `npm run test:unit` | Alignment validation, provider schema, prompt contract, dictionary parsing, settings normalization, diagnostics, and CSV escaping. |
+| Focused unit checks | `npm run test:unit` | Alignment validation, provider schema, prompt contract, dictionary parsing, settings normalization, diagnostics, CSV escaping, and i18n locale completeness. |
 | Type-check and build | `npm run build` | Confirms TypeScript and Vite can build the MV3 extension into `dist`. |
 | Combined local validation | `npm test` | Runs focused checks and build in one command. |
 | Dependency audit | `npm audit --cache .npm-cache` | Checks installed dependency vulnerability status using the local npm cache. |

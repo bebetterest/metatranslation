@@ -1,0 +1,350 @@
+{
+  "extensionName": {
+    "message": "metatranslation",
+    "description": "扩展名称。"
+  },
+  "extensionDescription": {
+    "message": "在网页中注入双行译文，支持悬浮对齐高亮和生词记录。",
+    "description": "扩展描述。"
+  },
+  "actionDefaultTitle": {
+    "message": "切换 metatranslation",
+    "description": "浏览器扩展按钮提示。"
+  },
+  "contextMenuTranslatePage": {
+    "message": "翻译本页",
+    "description": "翻译关闭时显示的右键菜单项。"
+  },
+  "contextMenuDisableTranslation": {
+    "message": "关闭翻译",
+    "description": "翻译开启时显示的右键菜单项。"
+  },
+  "contextMenuConfigRequired": {
+    "message": "重试（请确认已保存配置）",
+    "description": "Provider 设置不完整时显示的右键菜单项。"
+  },
+  "contextMenuUnavailable": {
+    "message": "当前页面不可翻译",
+    "description": "不支持的 URL 上显示的右键菜单项。"
+  },
+  "optionsPageTitle": {
+    "message": "metatranslation 选项",
+    "description": "选项页浏览器标题。"
+  },
+  "optionsHeroTitle": {
+    "message": "页面双行翻译与生词记录",
+    "description": "选项页主标题。"
+  },
+  "optionsHeroSubtitle": {
+    "message": "配置 OpenAI 兼容翻译接口，查看累计词频，按词或 URL 搜索，并导出 CSV。",
+    "description": "选项页副标题。"
+  },
+  "settingsPanelTitle": {
+    "message": "翻译设置",
+    "description": "设置面板标题。"
+  },
+  "settingsPanelDescription": {
+    "message": "默认按单块并发请求，哪一块先返回就先注入显示。你可以调节每次请求块数和并发数。",
+    "description": "设置面板说明。"
+  },
+  "providerSectionTitle": {
+    "message": "Provider",
+    "description": "Provider 设置分组标题。"
+  },
+  "providerSectionDescription": {
+    "message": "配置用于翻译和对齐的 OpenAI 兼容接口。",
+    "description": "Provider 设置分组说明。"
+  },
+  "baseUrlLabel": {
+    "message": "Base URL",
+    "description": "Base URL 设置标签。"
+  },
+  "baseUrlHelp": {
+    "message": "Provider 根地址。保存时会移除尾部斜杠，并自动追加 /chat/completions。",
+    "description": "Base URL 设置说明。"
+  },
+  "apiKeyLabel": {
+    "message": "API Key",
+    "description": "API Key 设置标签。"
+  },
+  "apiKeyHelp": {
+    "message": "存储在 chrome.storage.local，只发送给你配置的 provider。",
+    "description": "API Key 设置说明。"
+  },
+  "modelLabel": {
+    "message": "Model",
+    "description": "模型设置标签。"
+  },
+  "modelHelp": {
+    "message": "Provider model id，用于翻译文本并返回 source-span alignment。",
+    "description": "模型设置说明。"
+  },
+  "targetLanguageLabel": {
+    "message": "Target Language",
+    "description": "目标语言设置标签。"
+  },
+  "targetLanguageHelp": {
+    "message": "默认翻译为中文：zh-CN。这里控制译文目标语言，不控制扩展界面语言。",
+    "description": "目标语言设置说明。"
+  },
+  "translationFlowTitle": {
+    "message": "翻译流程",
+    "description": "翻译流程设置分组标题。"
+  },
+  "translationFlowDescription": {
+    "message": "控制请求分块、重试、上下文，以及对不完美模型输出的容错处理。",
+    "description": "翻译流程设置分组说明。"
+  },
+  "timeoutLabel": {
+    "message": "Timeout (ms)",
+    "description": "超时设置标签。"
+  },
+  "timeoutHelp": {
+    "message": "每个 provider 请求的最长等待时间；超时后按失败处理。",
+    "description": "超时设置说明。"
+  },
+  "requestChunkSizeLabel": {
+    "message": "Request Chunk Size",
+    "description": "请求块大小设置标签。"
+  },
+  "requestChunkSizeHelp": {
+    "message": "单次 provider 请求发送的页面文本块数量。默认 1，便于渐进式渲染。",
+    "description": "请求块大小设置说明。"
+  },
+  "parallelRequestsLabel": {
+    "message": "Parallel Requests",
+    "description": "并发请求设置标签。"
+  },
+  "parallelRequestsHelp": {
+    "message": "Content runtime 最多同时发起的翻译请求数。默认 64。",
+    "description": "并发请求设置说明。"
+  },
+  "contextWindowCharsLabel": {
+    "message": "Context Window Chars",
+    "description": "上下文窗口设置标签。"
+  },
+  "contextWindowCharsHelp": {
+    "message": "每个文本块前后额外发送的相邻字符，只用于消歧。默认 100；0 表示关闭上下文。",
+    "description": "上下文窗口设置说明。"
+  },
+  "retryCountLabel": {
+    "message": "Retry Count",
+    "description": "重试次数设置标签。"
+  },
+  "retryCountHelp": {
+    "message": "首次模型调用失败后的重试次数。默认 2；0 表示不重试输出。",
+    "description": "重试次数设置说明。"
+  },
+  "tolerantProviderOutputLabel": {
+    "message": "Tolerant Provider Output",
+    "description": "Provider 输出容错设置标签。"
+  },
+  "tolerantProviderOutputHelp": {
+    "message": "开启后，非法 sourceSpanIds 会作为无对齐文本保留；已通过 block 会保留，缺失或仍非法 block 按 Retry Count 重试。",
+    "description": "Provider 输出容错设置说明。"
+  },
+  "dictionarySectionTitle": {
+    "message": "字典",
+    "description": "字典设置分组标题。"
+  },
+  "dictionarySectionDescription": {
+    "message": "配置源文对齐 span 悬浮时显示的字典弹窗。",
+    "description": "字典设置分组说明。"
+  },
+  "dictionaryProviderLabel": {
+    "message": "Dictionary Provider",
+    "description": "字典 provider 设置标签。"
+  },
+  "dictionaryProviderOff": {
+    "message": "关闭",
+    "description": "字典 provider 的关闭选项。"
+  },
+  "dictionaryProviderHelp": {
+    "message": "源文悬浮字典 provider。结果由 background 获取并本地缓存。",
+    "description": "字典 provider 设置说明。"
+  },
+  "dictionaryEditionLabel": {
+    "message": "WiktApi Edition",
+    "description": "字典版本设置标签。"
+  },
+  "dictionaryEditionHelp": {
+    "message": "WiktApi 使用的 Wiktionary edition，例如 en、fr、de。默认 en。",
+    "description": "字典版本设置说明。"
+  },
+  "dictionaryHoverHoldLabel": {
+    "message": "Dictionary Hover Hold (ms)",
+    "description": "字典悬浮保活设置标签。"
+  },
+  "dictionaryHoverHoldHelp": {
+    "message": "鼠标从源文移动到字典弹窗时，弹窗保持打开的时间。默认 1000ms；0 表示立即关闭。",
+    "description": "字典悬浮保活设置说明。"
+  },
+  "saveSettingsButton": {
+    "message": "保存设置",
+    "description": "保存设置按钮。"
+  },
+  "recordsPanelTitle": {
+    "message": "词频记录",
+    "description": "记录面板标题。"
+  },
+  "recordsPanelDescription": {
+    "message": "悬浮原文词超过 2 秒会自动入库，按词频或最近命中排序。",
+    "description": "记录面板说明。"
+  },
+  "recordsSearchPlaceholder": {
+    "message": "搜索词、URL、句子",
+    "description": "记录搜索框占位文案。"
+  },
+  "sortRecent": {
+    "message": "最近",
+    "description": "最近排序选项。"
+  },
+  "sortFrequency": {
+    "message": "词频",
+    "description": "词频排序选项。"
+  },
+  "refreshButton": {
+    "message": "刷新",
+    "description": "刷新记录按钮。"
+  },
+  "exportCsvButton": {
+    "message": "导出 CSV",
+    "description": "导出 CSV 按钮。"
+  },
+  "recordCount": {
+    "message": "记录：$1 条",
+    "description": "记录数量摘要。"
+  },
+  "recordsLoading": {
+    "message": "加载记录中...",
+    "description": "记录加载状态。"
+  },
+  "settingsLoading": {
+    "message": "加载设置中...",
+    "description": "设置加载状态。"
+  },
+  "settingsSaving": {
+    "message": "保存中...",
+    "description": "设置保存状态。"
+  },
+  "settingsSaved": {
+    "message": "设置已保存",
+    "description": "设置保存完成状态。"
+  },
+  "recordsEmpty": {
+    "message": "当前没有符合条件的记录。",
+    "description": "记录为空提示。"
+  },
+  "recordsExportEmpty": {
+    "message": "没有可导出的记录",
+    "description": "空导出状态。"
+  },
+  "recordsExported": {
+    "message": "CSV 已导出",
+    "description": "导出完成状态。"
+  },
+  "unknownError": {
+    "message": "未知错误",
+    "description": "未知错误兜底。"
+  },
+  "recordWordHeader": {
+    "message": "词",
+    "description": "记录表格词头。"
+  },
+  "recordCountHeader": {
+    "message": "次数",
+    "description": "记录表格次数表头。"
+  },
+  "recordSourceHeader": {
+    "message": "语言",
+    "description": "记录表格语言表头。"
+  },
+  "recordLastSeenHeader": {
+    "message": "最近命中",
+    "description": "记录表格最近命中表头。"
+  },
+  "recordUrlHeader": {
+    "message": "URL",
+    "description": "记录表格 URL 表头。"
+  },
+  "recordSourceSentenceHeader": {
+    "message": "原句",
+    "description": "记录表格原句表头。"
+  },
+  "recordTranslationHeader": {
+    "message": "译文",
+    "description": "记录表格译文表头。"
+  },
+  "runtimeToggleFailed": {
+    "message": "切换失败。",
+    "description": "Content runtime 切换错误兜底。"
+  },
+  "statusScanningPage": {
+    "message": "正在扫描页面...",
+    "description": "扫描页面时的页面内状态。"
+  },
+  "statusFoundBlocksTranslating": {
+    "message": "发现 $1 个文本块，正在翻译...",
+    "description": "发现文本块后的页面内状态。"
+  },
+  "statusNoBlocks": {
+    "message": "当前页面没有可安全翻译的文本块。",
+    "description": "没有可翻译文本块时的页面内状态。"
+  },
+  "statusTranslatingPrefix": {
+    "message": "正在翻译...",
+    "description": "翻译中的状态前缀。"
+  },
+  "statusTranslationUpdatedPrefix": {
+    "message": "翻译已更新",
+    "description": "翻译更新后的状态前缀。"
+  },
+  "statusTranslationErrorPrefix": {
+    "message": "翻译错误",
+    "description": "翻译错误状态前缀。"
+  },
+  "statusRenderedCount": {
+    "message": "已渲染 $1/$2",
+    "description": "已渲染文本块数量。"
+  },
+  "statusSkippedInvalid": {
+    "message": "$1 个因模型输出非法或为空被跳过",
+    "description": "跳过非法文本块数量。"
+  },
+  "statusFailedCount": {
+    "message": "$1 个失败",
+    "description": "失败文本块数量。"
+  },
+  "statusLastError": {
+    "message": "最近错误：$1",
+    "description": "页面内最新错误状态。"
+  },
+  "dictionaryLoading": {
+    "message": "正在加载字典...",
+    "description": "字典加载状态。"
+  },
+  "dictionaryEmpty": {
+    "message": "没有找到字典条目。",
+    "description": "字典查询为空提示。"
+  },
+  "dictionaryLookupFailed": {
+    "message": "字典查询失败。",
+    "description": "字典查询失败正文。"
+  },
+  "dictionaryTitle": {
+    "message": "字典",
+    "description": "字典通用标题。"
+  },
+  "dictionaryLookupFailedTitle": {
+    "message": "查询失败",
+    "description": "字典查询失败标题。"
+  },
+  "dictionaryTranslationsLabel": {
+    "message": "翻译：$1",
+    "description": "字典翻译标签。"
+  },
+  "dictionaryOpenDictionary": {
+    "message": "打开字典",
+    "description": "字典来源链接。"
+  }
+}

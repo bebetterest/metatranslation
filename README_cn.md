@@ -61,6 +61,7 @@ metatranslation 是一个 Chromium Manifest V3 扩展，面向仍然需要保留
 - 在使用悬浮 alignment 前先校验 translated-part 模型输出。
 - Provider prompt 明确把网页文本、相邻上下文和页面 URL 视为不可信数据。
 - 支持源文/译文悬浮高亮、源文悬浮字典查询和词汇记录。
+- 通过 Chrome i18n 为 manifest、右键菜单、Options 页面、页面内诊断和字典弹窗提供英文与简体中文界面。
 - 设置存储在 `chrome.storage.local`，缓存和记录数据存储在 IndexedDB。
 - 提供聚焦单元检查、浏览器 smoke、mock-provider E2E、real-provider E2E 和打包自动化。
 
@@ -77,6 +78,7 @@ metatranslation 是一个 Chromium Manifest V3 扩展，面向仍然需要保留
 | 记录 | 源文侧稳定悬浮 2 秒后记录词汇命中、聚合次数、最近上下文、URL 和事件历史。 |
 | 导出 | Records CSV 导出包含 UTF-8 BOM，并中和来自不可信页面文本的电子表格公式前缀。 |
 | 诊断 | 页面内状态面板和 background diagnostics 会展示 skipped blocks、failed chunks、provider-output failure categories 和 alignment coverage。 |
+| 界面语言 | 扩展界面跟随浏览器 UI 语言。默认 locale 为英文，并支持简体中文；这与 `Target Language` 相互独立。 |
 
 当前范围暂不支持：
 
@@ -121,6 +123,8 @@ npm run build
 
 扩展调用 OpenAI 兼容的 `chat/completions` endpoint。可以使用 `https://openrouter.ai/api/v1` 这类 provider 根地址；代码会移除尾部斜杠，并在尚未包含时自动追加 `/chat/completions`。
 
+扩展界面语言通过 `_locales` 跟随 Chrome 或 Edge 的 UI 语言。切换界面语言不会改变 `Target Language`；该设置仍只控制发送到 provider prompt 的译文目标语言。
+
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
 | `Base URL` | `https://openrouter.ai/api/v1` | OpenAI 兼容 provider 根地址或完整 chat completions URL。 |
@@ -156,6 +160,7 @@ Provider 请求细节：
 - 当存在合法 alignment 时，在源文 span 上稳定悬浮 2 秒会记录词汇。
 - 启用字典查询时，悬浮源文 span 会打开字典弹窗。
 - 在 Options 页面可以搜索、排序和导出词汇记录。
+- 通过浏览器 UI 语言在英文和简体中文扩展界面之间切换。`Target Language` 只用于控制译文输出。
 - 如果开启翻译后页面看起来没有变化，先检查右下角诊断面板。没有面板表示 runtime 没有注入；错误面板通常表示 provider 失败；跳过数很高表示模型输出非法或为空。
 
 ## 架构
@@ -189,6 +194,7 @@ options page
 关键路径：
 
 - `manifest.config.ts`：MV3 manifest 定义。
+- `public/_locales/*/messages.json`：英文与简体中文 UI 文案，用于 manifest、右键菜单、Options、诊断和字典弹窗。
 - `docs/assets/metatranslation-header.png`：README 头图。
 - `src/background/index.ts`：service worker、action/context-menu 处理、消息路由、缓存编排、记录入口。
 - `src/background/openai.ts`：OpenAI 兼容请求构建、JSON 提取、重试、输出校验。
@@ -198,6 +204,7 @@ options page
 - `src/lib/alignment.ts`：alignment 清洗与校验。
 - `src/lib/sourceSpans.ts`：为 provider prompt 生成 source spans。
 - `src/lib/settings.ts`：设置归一化。
+- `src/lib/i18n.ts`：Options/background 共享的 Chrome i18n message lookup 辅助函数。
 - `src/options/main.ts`：Options 和 records UI 行为。
 - `scripts/`：构建、打包、单元测试、smoke、mock E2E、real E2E 和 live-page smoke 辅助脚本。
 - `docs/TECHNICAL_PLAN.md`：当前技术路线、验证状态、风险和下一步。
@@ -231,7 +238,7 @@ npm test
 
 | 层级 | 命令 | 用途 |
 | --- | --- | --- |
-| 聚焦单元检查 | `npm run test:unit` | 校验 alignment validation、provider schema、prompt contract、dictionary parsing、settings normalization、diagnostics 和 CSV escaping。 |
+| 聚焦单元检查 | `npm run test:unit` | 校验 alignment validation、provider schema、prompt contract、dictionary parsing、settings normalization、diagnostics、CSV escaping 和 i18n locale 完整性。 |
 | 类型检查与构建 | `npm run build` | 确认 TypeScript 和 Vite 能把 MV3 扩展构建到 `dist`。 |
 | 组合本地验证 | `npm test` | 一条命令运行聚焦检查和构建。 |
 | 依赖审计 | `npm audit --cache .npm-cache` | 使用本地 npm cache 检查已安装依赖漏洞状态。 |
