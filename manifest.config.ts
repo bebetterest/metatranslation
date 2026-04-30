@@ -25,6 +25,12 @@ export default defineManifest({
     type: 'module',
   },
   options_page: 'src/options/index.html',
-  permissions: ['storage', 'activeTab', 'scripting', 'contextMenus'],
+  permissions: [
+    'storage',
+    'activeTab',
+    'scripting',
+    'contextMenus',
+    'declarativeNetRequestWithHostAccess',
+  ],
   host_permissions: ['<all_urls>'],
 });

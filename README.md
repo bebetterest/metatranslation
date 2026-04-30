@@ -44,7 +44,7 @@
 
 ## Project Status
 
-metatranslation is a Chromium Manifest V3 extension focused on reading workflows where the original page still matters. It does not replace source text. Instead, it injects translated lines beside the original reading flow, uses model-returned source-span alignment for hover highlighting, and records vocabulary only after a stable source-side hover.
+metatranslation is a Chromium Manifest V3 extension focused on reading workflows where the original page still matters. It does not replace source text. Instead, it injects translated lines beside the original reading flow, uses model-returned source-span alignment for hover highlighting, and records vocabulary from local source-word hovers.
 
 Current release posture:
 
@@ -63,6 +63,7 @@ Current release posture:
 - Supports source and target hover highlighting, source-hover dictionary lookup, and vocabulary recording.
 - Localizes the manifest, context menu, options page, in-page diagnostics, and dictionary popup in English and Simplified Chinese through Chrome i18n.
 - Stores settings in `chrome.storage.local` and cache or records data in IndexedDB.
+- Provides optional Test Mode logs for local troubleshooting, with redaction, bounded retention, and JSON export from the options page.
 - Provides focused unit checks, browser smoke tests, mock-provider E2E, real-provider E2E, and package automation.
 
 ## Feature Scope
@@ -74,10 +75,10 @@ Current release posture:
 | Rendering | Source DOM text remains in place. Translation nodes inherit source text style and are removable on disable. Dense flex/grid and overlay labels use internal second-line rendering. |
 | Translation | OpenAI-compatible provider calls with structured JSON schema output, configurable target language, context window, concurrency, chunk size, timeout, and retry count. |
 | Alignment | The model returns `translatedParts[].sourceSpanIds`; the extension derives runtime source and target ranges locally. Strict and tolerant validation modes are supported. |
-| Dictionary | Source-hover dictionary popup can use WiktApi, FreeDictionaryAPI, or be turned off. Dictionary lookup keeps original word casing, queries Latin words in English before all-language fallback, ranks all-language results by likely source language, and caches normalized results locally. |
-| Records | Stable 2-second source-side hover records vocabulary hits, aggregate counts, last seen context, URL, and event history. |
+| Dictionary | Source-hover dictionary popup can use WiktApi, FreeDictionaryAPI, or be turned off. Source-side lookup uses the locally segmented source word under the pointer, even when model alignment groups multiple source spans. Dictionary lookup keeps original word casing, queries Latin words in English before all-language fallback, ranks all-language results by likely source language, and caches normalized results locally. |
+| Records | Stable 2-second source-side word hover records vocabulary hits, aggregate counts, last seen context, URL, and event history. |
 | Export | Records CSV export includes a UTF-8 BOM and neutralizes spreadsheet formula prefixes from untrusted page text. |
-| Diagnostics | In-page status panel plus background diagnostics for skipped blocks, failed chunks, provider-output failure categories, and alignment coverage. |
+| Diagnostics | In-page status panel plus background diagnostics for skipped blocks, failed chunks, provider-output failure categories, alignment coverage, and optional Test Mode event logs. |
 | UI Language | Extension UI follows the browser UI language. English is the default locale and Simplified Chinese is supported; this is independent of `Target Language`. |
 
 Unsupported in the current scope:
@@ -123,6 +124,8 @@ npm run build
 
 The extension calls an OpenAI-compatible `chat/completions` endpoint. A provider root URL such as `https://openrouter.ai/api/v1` is accepted; trailing slashes are trimmed and `/chat/completions` is appended unless already present.
 
+For a local Ollama model, use `http://127.0.0.1:11434` or `http://127.0.0.1:11434/v1`, any non-empty placeholder API key such as `ollama`, and an installed model such as `qwen2.5:0.5b`. The default local Ollama root is resolved to `/v1/chat/completions`. Chrome extension requests normally include a `chrome-extension://...` `Origin` that default Ollama rejects; the extension installs a best-effort session-scoped request-header rule that removes `Origin` only from background requests to local Ollama on port `11434`. Remote providers such as OpenRouter are not matched by this rule. If you expose Ollama on a non-default host or port, configure Ollama's `OLLAMA_ORIGINS` instead.
+
 The extension UI language follows Chrome or Edge's UI language through `_locales`. Changing UI language does not change `Target Language`; that setting still controls the translation output sent to the provider prompt.
 
 | Option | Default | Notes |
@@ -139,6 +142,7 @@ The extension UI language follows Chrome or Edge's UI language through `_locales
 | `Tolerant Provider Output` | on | Keeps valid text when imperfect model JSON can be safely recovered. Turn it off for strict provider-contract debugging. |
 | `Dictionary Provider` | `WiktApi` | `WiktApi`, `FreeDictionaryAPI`, or `Off`. |
 | `Dictionary Hover Hold (ms)` | `1000` | Keep-alive window while moving from source text to the dictionary popup; `0` closes immediately. |
+| `Test Mode` | off | Writes bounded local troubleshooting logs for background and content-runtime events. API keys and auth tokens are redacted. |
 
 Provider request details:
 
@@ -146,6 +150,8 @@ Provider request details:
 - Sends `reasoning: { "effort": "none" }` by default.
 - Does not send `reasoning_split`.
 - Keeps OpenRouter-specific headers isolated in provider-header logic.
+- Removes `Origin` only for extension background requests to local Ollama's default `http://localhost:11434` family of endpoints.
+- Resolves the default local Ollama root to `/v1/chat/completions`; other provider roots still append `/chat/completions`.
 - Treats webpage text, adjacent context, and page URL as untrusted data in the provider prompt.
 - Uses three multilingual format-only alignment examples.
 - Reports fine-grained provider-output failure counts plus aggregate alignment coverage in background diagnostics.
@@ -156,9 +162,10 @@ Provider request details:
 - Trigger again on the same document to disable and remove injected nodes.
 - Navigate to a new document and trigger translation again; full-page navigation resets the previous page state.
 - Hover a source span or translated span to highlight the aligned counterpart.
-- Hover a source span for 2 seconds to record vocabulary when a valid alignment exists.
-- Hover a source span to open the dictionary popup when dictionary lookup is enabled.
+- Hover a source word for 2 seconds to record vocabulary after translation is available.
+- Hover a source word to open the dictionary popup when dictionary lookup is enabled. The target highlight still follows the model alignment for that word when one exists.
 - Use the options page to search, sort, and export vocabulary records.
+- Enable `Test Mode` on the options page while reproducing an issue, then refresh or export the Test Logs panel as JSON.
 - Use the browser UI language to switch extension UI between English and Simplified Chinese. Keep `Target Language` for translation output only.
 - If translation appears to do nothing, check the bottom-right diagnostic panel. No panel means the runtime did not inject; an error panel usually means provider failure; high skipped counts mean invalid or empty model output.
 
@@ -174,6 +181,7 @@ background service worker
   - translation cache
   - dictionary lookup
   - vocabulary records
+  - test logs
         |
         v
 content runtime
@@ -187,6 +195,7 @@ content runtime
 options page
   - provider settings
   - runtime tuning
+  - test log view/export/clear
   - records search/sort/export
 ```
 
@@ -197,7 +206,10 @@ Key paths:
 - `docs/assets/metatranslation-header.png`: README header image.
 - `src/background/index.ts`: service worker, action/context-menu handling, message routing, cache orchestration, records entrypoints.
 - `src/background/openai.ts`: OpenAI-compatible request builder, JSON extraction, retries, output validation.
+- `src/background/localOllama.ts`: shared local Ollama URL detection and default endpoint resolution helpers.
+- `src/background/localOllamaCors.ts`: local Ollama request-header rule scoping for extension Origin compatibility.
 - `src/background/dictionary.ts`: WiktApi and FreeDictionaryAPI lookup normalization.
+- `src/background/testLogs.ts`: bounded local Test Mode log storage, redaction, query, and clear helpers.
 - `src/background/db.ts`: IndexedDB stores for translation cache, dictionary cache, word records, and word events.
 - `src/content/injected.ts`: injected runtime, DOM extraction, mutation tracking, rendering, hover mapping, highlight overlay, record timer.
 - `src/lib/alignment.ts`: alignment sanitization and validation.
@@ -237,7 +249,7 @@ Common commands:
 
 | Layer | Command | Purpose |
 | --- | --- | --- |
-| Focused unit checks | `npm run test:unit` | Alignment validation, provider schema, prompt contract, dictionary parsing, settings normalization, diagnostics, CSV escaping, and i18n locale completeness. |
+| Focused unit checks | `npm run test:unit` | Alignment validation, provider schema, prompt contract, dictionary parsing, settings normalization, diagnostics, Test Mode log sanitization, CSV escaping, and i18n locale completeness. |
 | Type-check and build | `npm run build` | Confirms TypeScript and Vite can build the MV3 extension into `dist`. |
 | Combined local validation | `npm test` | Runs focused checks and build in one command. |
 | Dependency audit | `npm audit --cache .npm-cache` | Checks installed dependency vulnerability status using the local npm cache. |
@@ -265,8 +277,10 @@ If `package.json` changes but the `version` value is unchanged, the workflow exi
 - Page text selected for translation is sent to the configured provider.
 - API keys are stored in `chrome.storage.local`.
 - Translation cache, dictionary cache, word records, and word events are stored locally in IndexedDB.
+- Test Mode logs are stored locally in `chrome.storage.local` only while enabled, retain a bounded recent history, and redact API keys, authorization headers, tokens, secrets, and passwords. They may include page URLs, event metadata, diagnostics, hovered or recorded words, the full provider request body, the full provider response body, and the extracted model message text so provider-output problems can be investigated.
 - The extension does not intentionally send records or cache contents to any service other than the configured translation provider and dictionary providers.
 - Dictionary lookup sends the hovered source word plus language metadata to the selected dictionary provider.
+- The `declarativeNetRequestWithHostAccess` permission is used only to remove the `Origin` request header from extension background requests to local Ollama on port `11434`.
 - CSV export contains webpage text and URLs; review before sharing.
 - Do not commit real API keys, screenshots containing private pages, browser profiles, or generated artifacts.
 
@@ -287,7 +301,7 @@ Before opening a change:
 ## Roadmap
 
 - Add focused tests for content-runtime extraction boundaries.
-- Add optional debug export for skipped blocks and invalid provider output.
+- Add filtering and search controls for the Test Logs panel.
 - Improve release metadata before publishing, including a license file, changelog, and privacy policy.
 - Re-run real-provider E2E after prompt or output-contract changes.
 - Continue tuning page-layout handling through real-page smoke tests instead of site-specific hacks.

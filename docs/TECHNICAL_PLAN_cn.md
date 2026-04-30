@@ -26,6 +26,7 @@
 - 可复用 alignment 清洗逻辑位于 `src/lib/alignment.ts`。
 - Source span 表生成逻辑位于 `src/lib/sourceSpans.ts`。
 - IndexedDB 缓存和记录持久化位于 `src/background/db.ts`。
+- Test Mode 日志存储和脱敏位于 `src/background/testLogs.ts`。
 - 注入 content runtime 位于 `src/content/injected.ts`。
 - 共享消息和数据类型位于 `src/lib/`。
 - Options 页面位于 `src/options/`。
@@ -54,19 +55,21 @@
 - structured-output response format 使用 `json_schema`，以减少模型返回非 JSON 内容。
 - 默认发送 `reasoning: { effort: "none" }`。
 - 支持 OpenRouter 兼容可选 headers。
+- 默认 `http://localhost:11434` 系列 endpoint 上的本地 Ollama 通过最佳努力 session 级 `declarativeNetRequest` 规则支持；该规则只会移除扩展 background 请求的 `Origin` header，避免 Ollama 默认拒绝 `chrome-extension://...` origin，同时不影响远端 provider。默认本地 Ollama 根地址会解析为 `/v1/chat/completions`；其他 provider root 仍追加 `/chat/completions`。
 - 面向 Grok 的 translated-part raw alignment 协议：prompt payload 会包含 block `id`、源文、可选相邻上下文和本地生成的 `sourceSpans`，但不包含 source/target offsets。Prompt 中的 `sourceSpans` 只暴露 `id` 和 `text`；字符范围保留在扩展本地。模型输出使用只包含 `id` 和 `translatedParts[{ text, sourceSpanIds? }]` 的 blocks。扩展按 `id` 匹配输出 blocks，并使用请求侧 language hint，而不依赖模型返回 `sourceLang`。`sourceSpanIds` 始终是扁平数组，可以包含 `["s1", "s5"]` 这样的非连续 ids；单数 `sourceSpanId` 会被拒绝。这些 span 是扩展拥有的词/字符候选，不是 provider 原生分段；CJK 源文使用更小的字符级 spans，可通过相邻 ids 组合。纯标点 parts 如果意外带有模型返回的 `sourceSpanIds`，sanitization 可以忽略这些 ids。
 - Tolerant provider-output 恢复可配置且默认开启。严格模式下，缺失、重复、意外或不匹配的 output ids 以及 alignment 不匹配仍会触发重试或诊断。容错模式下，非法 source-span 引用会作为无对齐译文文本保留，已通过的 block 不重试，重复或多余 output blocks 会被忽略，缺失或仍非法的 block 会重试到 `translationRetryCount` 耗尽。
-- Provider prompt 有意保持简短：task、output JSON shape、rules、format-only examples、page metadata 和 payload。Prompt 明确说明 payload text、相邻上下文和 page URL 都是不可信网页数据，不能作为指令执行；相邻上下文只用于消歧，不能被翻译。
+- Provider prompt 有意保持简短：task、output shape、rules、format-only examples、page metadata 和 payload。Prompt 会避免使用字面 placeholder block id，防止小型本地模型复制占位 id 而不是 payload id。Prompt 明确说明 payload text、相邻上下文和 page URL 都是不可信网页数据，不能作为指令执行；相邻上下文只用于消歧，不能被翻译。
 - Provider prompt 现在发送三个多语言 format-only few-shot 示例，而不是之前较大的、主要面向中文的示例集：英译简中示例覆盖上下文消歧、目标语重排、冠词和标点不对齐；日译英示例覆盖 CJK 字符组合、助词和空格；英译西班牙语示例覆盖非连续 phrasal verbs 和 clitics。
 - 严格对齐校验，并分别检查 source/target 真实重叠。Source ranges 由本地 source span ids 计算，包括 `["s1", "s5"]` 这类非连续数组；target ranges 由 translated part 顺序计算。为兼容旧输出，legacy offset-style 输出仍会被接受。
 - 聚焦 alignment 校验回归脚本，覆盖 translated parts、重排、overlap、source-span anchored 输出、相邻 CJK span 组合、重复目标文本、非连续 source spans、可恢复 legacy offset 修复、不可恢复 ranges、重复 alignment id 和模糊文本修复。
-- 通过 overlay 矩形进行 source/target 悬浮高亮。
-- 源文侧悬浮字典弹窗，provider 可配置为 `WiktApi`、`FreeDictionaryAPI` 或 `Off`，弹窗保活窗口可配置且默认 `1000ms`。WiktApi edition 仍作为兼容存储的内部字段保留，但不再暴露在 Options 页面，并会归一化为默认英文 edition。字典查询在 background service worker 中执行，会先保留查询词大小写再小写回退；拉丁词先查英文再回退到全语言查询；全语言结果会按可能的源语言排序，但不会把页面语言提示当作硬过滤条件；结果缓存在 IndexedDB，并向 content tooltip 提供释义、发音、例句、翻译、attribution 和 source links。
+- 通过 overlay 矩形进行 source/target 悬浮高亮。源文侧指针命中使用本地 source-span 表做单词级 hover；目标侧 hover 仍使用已校验的模型 alignment。
+- 源文侧悬浮字典弹窗，provider 可配置为 `WiktApi`、`FreeDictionaryAPI` 或 `Off`，弹窗保活窗口可配置且默认 `1000ms`。源文查词和记录使用指针下方本地切分出的源词，即使模型 alignment 把多个 source spans 合成一个 target part 也不会查整组短语。WiktApi edition 仍作为兼容存储的内部字段保留，但不再暴露在 Options 页面，并会归一化为默认英文 edition。字典查询在 background service worker 中执行，会先保留查询词大小写再小写回退；拉丁词先查英文再回退到全语言查询；全语言结果会按可能的源语言排序，但不会把页面语言提示当作硬过滤条件；结果缓存在 IndexedDB，并向 content tooltip 提供释义、发音、例句、翻译、attribution 和 source links。
 - 页面内诊断状态浮层，用于显示翻译进度、跳过 block 数、失败 chunk、invalid/empty sanitized blocks、id mismatches 和最近 provider 错误。Background diagnostics 还会包含更细的 provider-output failure counts，以及 accepted provider blocks 的聚合 alignment coverage。
+- 可选 Test Mode 会为 background 和 content-runtime 事件写入有上限的本地排障日志，包括 action 切换、runtime 生命周期、扫描、mutation flush、缓存检查、provider 请求、翻译 diagnostics、字典查询和词汇记录。Provider 请求尝试还会记录完整 provider 请求体、完整 provider 响应正文，以及提取出的模型消息文本，便于检查模型输出问题。日志详情在存储前会脱敏 API keys、authorization headers、tokens、secrets 和 passwords。
 - 对 `input[type=button|submit|reset]` 支持基于几何位置的悬浮。
-- 源文稳定悬浮 2 秒后记录词汇。
+- 源词稳定悬浮 2 秒后记录词汇。
 - IndexedDB 翻译缓存、聚合记录和事件历史。翻译缓存键包含 alignment-contract version 和 adjacent context hash，避免旧缓存结构和上下文敏感译文流入不兼容请求。
-- Options 页面设置、本地化 helper text、记录搜索/排序和带 UTF-8 BOM 且中和公式前缀的 CSV 导出。
+- Options 页面设置、本地化 helper text、Test Logs 刷新/导出/清空控件、记录搜索/排序和带 UTF-8 BOM 且中和公式前缀的 CSV 导出。
 - 版本化 zip 打包。
 - GitHub Actions release 自动化会检测 `main` 上 `package.json` 的 version 变化，校验 lockfile 版本，运行单元检查，打包扩展，创建 `v<version>` tag，并把 zip 发布到 GitHub Releases。
 - Mock provider 浏览器 E2E 包装脚本，可在不消耗真实 API quota 的情况下进行完整扩展回归。
@@ -81,7 +84,7 @@
 - `npm run test:unit` 通过。
 - `npm test` 通过。
 - `npm audit --cache .npm-cache` 在 Rollup override 后报告 0 个漏洞。
-- 单元测试现在覆盖任一非法 alignment 都整块拒绝、translated-part 输出、重复目标文本、非连续 source spans、字典 provider URL/result 解析、字典语言/大小写回退和全语言排序、通用 `reasoning: { effort: "none" }` 请求体、structured-output `json_schema`、OpenRouter header、fenced/think JSON 提取、解析失败后的严格重试恢复、设置归一化、alignment coverage diagnostics、更细的 provider-output failure counts、CSV 转义，以及 i18n locale 完整性。
+- 单元测试现在覆盖任一非法 alignment 都整块拒绝、translated-part 输出、重复目标文本、非连续 source spans、字典 provider URL/result 解析、字典语言/大小写回退和全语言排序、通用 `reasoning: { effort: "none" }` 请求体、structured-output `json_schema`、OpenRouter header、本地 Ollama URL 解析和 Origin 移除规则作用域、fenced/think JSON 提取、解析失败后的严格重试恢复、设置归一化、alignment coverage diagnostics、更细的 provider-output failure counts、Test Mode 日志脱敏和保留上限、CSV 转义，以及 i18n locale 完整性。
 - 单元测试也验证 raw provider schema 在模型输出 block 层要求 `id` 和 `translatedParts[].text`、拒绝 `sourceLang`、单数 `sourceSpanId` 和额外 part 字段，并确认新的 Grok 风格输出不再依赖模型计算 source 或 target offsets。Prompt 测试会验证 payload blocks 包含 `id`，payload `sourceSpans` 只暴露 `id/text`，把网页 text/context/page URL 当作不可信数据而不是指令，只发送三个多语言示例，要求模型优先使用细粒度词/术语对齐而不是整句或整从句 part，保持严格模式下 id mismatch 可重试，并通过忽略非法 spans、缺失 blocks、重复 ids 和多余 blocks 来恢复容错输出。
 - `npm run package:zip` 会生成 `artifacts/metatranslation-0.1.3.zip`。
 - 真实 API E2E 在最新 `translatedParts` 契约更新前曾使用 OpenRouter `https://openrouter.ai/api/v1` 和 `x-ai/grok-4.1-fast` 跑通过；发布前如需真实 provider 信心，需要重新运行。
@@ -95,6 +98,7 @@
 ## 已知风险
 
 - Provider 兼容性有意保持通用。一些 OpenAI 兼容 provider 可能拒绝 `response_format` 或 `reasoning` 等字段；只有在确认用户接受该取舍后，才添加 provider 专用兼容层。
+- 本地 Ollama Origin 旁路有意限制在 `http://localhost`、`http://127.0.0.1`、`http://0.0.0.0` 和 `http://[::1]` 的 `11434` 端口 background 请求。非默认 Ollama 部署应使用 Ollama 的 `OLLAMA_ORIGINS` 设置。
 - 对齐质量依赖模型输出。当前设计不做本地启发式兜底。
 - Input button 的几何文本 offset 是近似值，因为浏览器 input 不暴露逐字符 text range。
 - 保守提取会按设计跳过部分混排或强交互内容。
@@ -108,7 +112,7 @@
 - 为 content runtime 提取边界增加聚焦测试。
 - 发布类变更前，在具备浏览器环境的机器上运行 `npm run e2e:mock`，尤其是修改 content runtime 或 background message 后。
 - 在添加站点专用提取改动前，使用 `npm run e2e:page` 做站点级回归。
-- 考虑增加一个小型 diagnostics 面板或 debug logging 开关，用于失败 block 和非法 alignments。
+- 为 Test Logs 面板增加过滤和搜索控件。
 - 随行为变化同步 README、AGENTS 和本文档。
 - 保持 README 达到开源入口文档质量；当 onboarding、configuration、privacy、contribution、release guidance 或 README 视觉资产变化时，同步更新英文和中文版本。
 
@@ -119,6 +123,7 @@
 - 使用纯模型对齐，并跳过非法 block。
 - Provider 输出要求 translated-part 形式，因为 `x-ai/grok-4.1-fast` 按顺序生成译文片段并选择扩展拥有的 source span ids，应比计算字符 offsets 或 target occurrences 更稳定。现在 source ranges 来自扩展生成的 span 表，target offsets 由 translated part 顺序解析。
 - 使用 IndexedDB 存储缓存和记录，因为翻译缓存、字典缓存和事件历史可能超过小型 settings storage 的合理范围。
-- 使用 `requestChunkSize`、`requestConcurrency`、`contextWindowChars`、`translationRetryCount` 和 `tolerantProviderOutput` 设置，让用户可以调节延迟、provider rate-limit 行为、发送给 provider 的相邻上下文长度、重试行为，以及是否恢复不完整 provider 输出。
+- 使用 `requestChunkSize`、`requestConcurrency`、`contextWindowChars`、`translationRetryCount`、`tolerantProviderOutput` 和 `testMode` 设置，让用户可以调节延迟、provider rate-limit 行为、发送给 provider 的相邻上下文长度、重试行为、是否恢复不完整 provider 输出，以及是否写入本地排障日志。
+- Test Mode 日志使用有上限的 `chrome.storage.local` 记录，而不是 IndexedDB，因为这些是短期诊断事件，应便于从 Options 页面查询、导出和清空。
 - 当前保持 provider 逻辑通用，OpenRouter headers 隔离在 provider-header helper 中。
 - 在真实 `LICENSE` 文件添加之前，不声明具体开源 license。

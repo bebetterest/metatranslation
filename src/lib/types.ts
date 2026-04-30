@@ -12,6 +12,7 @@ export interface ExtensionSettings {
   dictionaryEdition: string;
   dictionaryHoverHoldMs: number;
   tolerantProviderOutput: boolean;
+  testMode: boolean;
 }
 
 export type DictionaryProvider = 'off' | 'wiktapi' | 'freedictionaryapi';
@@ -30,7 +31,34 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   dictionaryEdition: 'en',
   dictionaryHoverHoldMs: 1000,
   tolerantProviderOutput: true,
+  testMode: false,
 };
+
+export type TestLogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+export type TestLogSource = 'background' | 'content';
+
+export interface TestLogEntry {
+  id: string;
+  timestamp: number;
+  level: TestLogLevel;
+  source: TestLogSource;
+  event: string;
+  pageUrl: string;
+  details: Record<string, unknown>;
+}
+
+export interface TestLogAddPayload {
+  level: TestLogLevel;
+  source: TestLogSource;
+  event: string;
+  pageUrl?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface TestLogsQueryResult {
+  logs: TestLogEntry[];
+}
 
 export interface TranslationBlockRequest {
   id: string;

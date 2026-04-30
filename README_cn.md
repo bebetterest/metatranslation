@@ -44,7 +44,7 @@
 
 ## 项目状态
 
-metatranslation 是一个 Chromium Manifest V3 扩展，面向仍然需要保留原文阅读语境的网页翻译场景。它不会替换源文本，而是在原始阅读流旁注入译文行，使用模型返回的 source-span alignment 做悬浮高亮，并且只在源文侧稳定悬浮后记录词汇。
+metatranslation 是一个 Chromium Manifest V3 扩展，面向仍然需要保留原文阅读语境的网页翻译场景。它不会替换源文本，而是在原始阅读流旁注入译文行，使用模型返回的 source-span alignment 做悬浮高亮，并基于本地源词悬浮记录词汇。
 
 当前发布状态：
 
@@ -63,6 +63,7 @@ metatranslation 是一个 Chromium Manifest V3 扩展，面向仍然需要保留
 - 支持源文/译文悬浮高亮、源文悬浮字典查询和词汇记录。
 - 通过 Chrome i18n 为 manifest、右键菜单、Options 页面、页面内诊断和字典弹窗提供英文与简体中文界面。
 - 设置存储在 `chrome.storage.local`，缓存和记录数据存储在 IndexedDB。
+- 提供可选测试模式日志，用于本地排查问题，并支持脱敏、有界保留和在 Options 页面导出 JSON。
 - 提供聚焦单元检查、浏览器 smoke、mock-provider E2E、real-provider E2E 和打包自动化。
 
 ## 功能范围
@@ -74,10 +75,10 @@ metatranslation 是一个 Chromium Manifest V3 扩展，面向仍然需要保留
 | 渲染 | 源 DOM 文本保持原位。译文节点继承源文本样式，并可在关闭时清理。密集 flex/grid 和 overlay label 使用内部第二行渲染。 |
 | 翻译 | OpenAI 兼容 provider 调用，使用 structured JSON schema 输出，并支持配置目标语言、上下文窗口、并发、chunk size、超时和重试次数。 |
 | 对齐 | 模型返回 `translatedParts[].sourceSpanIds`；扩展在本地派生运行时 source/target ranges。支持严格和容错校验模式。 |
-| 字典 | 源文悬浮字典弹窗可使用 WiktApi、FreeDictionaryAPI 或关闭。字典查询会保留原词大小写，拉丁词先查英文再回退到全语言查询，全语言结果会按可能的源语言排序，并本地缓存归一化结果。 |
-| 记录 | 源文侧稳定悬浮 2 秒后记录词汇命中、聚合次数、最近上下文、URL 和事件历史。 |
+| 字典 | 源文悬浮字典弹窗可使用 WiktApi、FreeDictionaryAPI 或关闭。源文侧查词使用指针下方本地切分出的源词，即使模型 alignment 把多个 source spans 合成一组也不会查整组短语。字典查询会保留原词大小写，拉丁词先查英文再回退到全语言查询，全语言结果会按可能的源语言排序，并本地缓存归一化结果。 |
+| 记录 | 源文侧单词稳定悬浮 2 秒后记录词汇命中、聚合次数、最近上下文、URL 和事件历史。 |
 | 导出 | Records CSV 导出包含 UTF-8 BOM，并中和来自不可信页面文本的电子表格公式前缀。 |
-| 诊断 | 页面内状态面板和 background diagnostics 会展示 skipped blocks、failed chunks、provider-output failure categories 和 alignment coverage。 |
+| 诊断 | 页面内状态面板和 background diagnostics 会展示 skipped blocks、failed chunks、provider-output failure categories、alignment coverage，以及可选测试模式事件日志。 |
 | 界面语言 | 扩展界面跟随浏览器 UI 语言。默认 locale 为英文，并支持简体中文；这与 `Target Language` 相互独立。 |
 
 当前范围暂不支持：
@@ -123,6 +124,8 @@ npm run build
 
 扩展调用 OpenAI 兼容的 `chat/completions` endpoint。可以使用 `https://openrouter.ai/api/v1` 这类 provider 根地址；代码会移除尾部斜杠，并在尚未包含时自动追加 `/chat/completions`。
 
+本地 Ollama 模型可使用 `http://127.0.0.1:11434` 或 `http://127.0.0.1:11434/v1`，`API Key` 填任意非空占位值例如 `ollama`，`Model` 填已安装模型例如 `qwen2.5:0.5b`。默认本地 Ollama 根地址会解析为 `/v1/chat/completions`。Chrome extension 请求通常会带 `chrome-extension://...` `Origin`，默认 Ollama 会拒绝；扩展会以最佳努力安装一个 session 级请求头规则，只对发往本地 Ollama `11434` 端口的 background 请求移除 `Origin`。OpenRouter 等远端 provider 不会命中该规则。如果把 Ollama 暴露在非默认 host 或 port，请改用 Ollama 的 `OLLAMA_ORIGINS` 配置。
+
 扩展界面语言通过 `_locales` 跟随 Chrome 或 Edge 的 UI 语言。切换界面语言不会改变 `Target Language`；该设置仍只控制发送到 provider prompt 的译文目标语言。
 
 | 选项 | 默认值 | 说明 |
@@ -139,6 +142,7 @@ npm run build
 | `Tolerant Provider Output` | 开启 | 当模型 JSON 有瑕疵但可安全恢复时，保留有效文本；排查严格 provider 契约时可关闭。 |
 | `Dictionary Provider` | `WiktApi` | `WiktApi`、`FreeDictionaryAPI` 或 `Off`。 |
 | `Dictionary Hover Hold (ms)` | `1000` | 鼠标从源文移动到字典弹窗时的保活窗口；`0` 表示立即关闭。 |
+| `Test Mode` | 关闭 | 为 background 和 content-runtime 事件写入有上限的本地排障日志。API key 和 auth token 会被脱敏。 |
 
 Provider 请求细节：
 
@@ -146,6 +150,8 @@ Provider 请求细节：
 - 默认发送 `reasoning: { "effort": "none" }`。
 - 不发送 `reasoning_split`。
 - OpenRouter 特定 headers 保持隔离在 provider-header 逻辑中。
+- 只对发往本地 Ollama 默认 `http://localhost:11434` 系列 endpoint 的扩展 background 请求移除 `Origin`。
+- 默认本地 Ollama 根地址会解析为 `/v1/chat/completions`；其他 provider root 仍追加 `/chat/completions`。
 - Provider prompt 会把网页 text、相邻 context 和 page URL 视为不可信数据。
 - 使用三个多语言 format-only alignment 示例。
 - 在 background diagnostics 中报告更细的 provider-output failure counts 和聚合 alignment coverage。
@@ -156,9 +162,10 @@ Provider 请求细节：
 - 在同一文档中再次触发会关闭翻译并移除注入节点。
 - 导航到新文档后需要再次触发翻译；完整页面导航会重置上一页状态。
 - 悬浮源文 span 或译文 span 时，会高亮其对齐 counterpart。
-- 当存在合法 alignment 时，在源文 span 上稳定悬浮 2 秒会记录词汇。
-- 启用字典查询时，悬浮源文 span 会打开字典弹窗。
+- 翻译可用后，在源词上稳定悬浮 2 秒会记录词汇。
+- 启用字典查询时，悬浮源词会打开字典弹窗；如果该词存在模型 alignment，目标侧高亮仍跟随该 alignment。
 - 在 Options 页面可以搜索、排序和导出词汇记录。
+- 排查问题时，可在 Options 页面开启 `Test Mode`，复现后刷新或将 Test Logs 面板导出为 JSON。
 - 通过浏览器 UI 语言在英文和简体中文扩展界面之间切换。`Target Language` 只用于控制译文输出。
 - 如果开启翻译后页面看起来没有变化，先检查右下角诊断面板。没有面板表示 runtime 没有注入；错误面板通常表示 provider 失败；跳过数很高表示模型输出非法或为空。
 
@@ -174,6 +181,7 @@ background service worker
   - translation cache
   - dictionary lookup
   - vocabulary records
+  - test logs
         |
         v
 content runtime
@@ -187,6 +195,7 @@ content runtime
 options page
   - provider settings
   - runtime tuning
+  - test log view/export/clear
   - records search/sort/export
 ```
 
@@ -197,7 +206,10 @@ options page
 - `docs/assets/metatranslation-header.png`：README 头图。
 - `src/background/index.ts`：service worker、action/context-menu 处理、消息路由、缓存编排、记录入口。
 - `src/background/openai.ts`：OpenAI 兼容请求构建、JSON 提取、重试、输出校验。
+- `src/background/localOllama.ts`：共享的本地 Ollama URL 判断和默认 endpoint 解析 helper。
+- `src/background/localOllamaCors.ts`：本地 Ollama 请求头规则作用域控制，用于 extension Origin 兼容。
 - `src/background/dictionary.ts`：WiktApi 和 FreeDictionaryAPI 查询归一化。
+- `src/background/testLogs.ts`：有界本地 Test Mode 日志存储、脱敏、查询和清空 helper。
 - `src/background/db.ts`：IndexedDB stores，用于翻译缓存、字典缓存、词汇记录和词汇事件。
 - `src/content/injected.ts`：注入 runtime、DOM 提取、mutation 跟踪、渲染、悬浮映射、高亮 overlay、记录计时器。
 - `src/lib/alignment.ts`：alignment 清洗与校验。
@@ -237,7 +249,7 @@ npm test
 
 | 层级 | 命令 | 用途 |
 | --- | --- | --- |
-| 聚焦单元检查 | `npm run test:unit` | 校验 alignment validation、provider schema、prompt contract、dictionary parsing、settings normalization、diagnostics、CSV escaping 和 i18n locale 完整性。 |
+| 聚焦单元检查 | `npm run test:unit` | 校验 alignment validation、provider schema、prompt contract、dictionary parsing、settings normalization、diagnostics、Test Mode log sanitization、CSV escaping 和 i18n locale 完整性。 |
 | 类型检查与构建 | `npm run build` | 确认 TypeScript 和 Vite 能把 MV3 扩展构建到 `dist`。 |
 | 组合本地验证 | `npm test` | 一条命令运行聚焦检查和构建。 |
 | 依赖审计 | `npm audit --cache .npm-cache` | 使用本地 npm cache 检查已安装依赖漏洞状态。 |
@@ -265,8 +277,10 @@ npm run package:zip
 - 被选中用于翻译的页面文本会发送到配置的 provider。
 - API key 存储在 `chrome.storage.local`。
 - 翻译缓存、字典缓存、词汇记录和词汇事件存储在本地 IndexedDB。
+- Test Mode 日志仅在开启时写入并存储在本地 `chrome.storage.local`，只保留有上限的最近历史，并会脱敏 API keys、authorization headers、tokens、secrets 和 passwords。日志可能包含页面 URL、事件元数据、diagnostics、悬浮或记录的词、完整 provider 请求体、完整 provider 响应正文，以及提取出的模型消息文本，便于排查 provider 输出问题。
 - 除配置的翻译 provider 和字典 provider 外，扩展不会有意发送 records 或 cache 内容。
 - 字典查询会把悬浮的源词和语言元数据发送到选定字典 provider。
+- `declarativeNetRequestWithHostAccess` 权限只用于对发往本地 Ollama `11434` 端口的扩展 background 请求移除 `Origin` 请求头。
 - CSV 导出包含网页文本和 URL；分享前应自行检查。
 - 不要提交真实 API key、包含隐私页面的截图、浏览器 profile 或生成产物。
 
@@ -287,7 +301,7 @@ npm run package:zip
 ## 路线图
 
 - 增加 content-runtime 提取边界的聚焦测试。
-- 增加 skipped blocks 和非法 provider 输出的可选 debug export。
+- 为 Test Logs 面板增加过滤和搜索控件。
 - 公开发布前完善 release metadata，包括 license 文件、changelog 和隐私政策。
 - prompt 或输出契约变化后重新运行真实 provider E2E。
 - 通过真实页面 smoke tests 持续调优页面布局处理，避免站点特化 hack。

@@ -13,6 +13,9 @@ export function contentRuntimeBootstrap() {
   const MUTATION_FLUSH_DELAY_MS = 500;
   const MIN_TEXT_LENGTH = 3;
   const MAX_TEXT_LENGTH = 1600;
+  // Keep in sync with src/lib/sourceSpans.ts; this function is injected without module closures.
+  const SOURCE_SPAN_PATTERN =
+    /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]|[\p{L}\p{N}]+(?:['’_-][\p{L}\p{N}]+)*/gu;
   const TEXT_BLOCK_TAGS = new Set([
     'P',
     'LI',
@@ -84,12 +87,14 @@ export function contentRuntimeBootstrap() {
 
   win[GLOBAL_KEY] = { initialized: true };
 
+  type TextRange = {
+    start: number;
+    end: number;
+  };
+
   type AlignmentSpan = {
     alignmentId: string;
-    sourceRanges: Array<{
-      start: number;
-      end: number;
-    }>;
+    sourceRanges: TextRange[];
     targetStart: number;
     targetEnd: number;
     sourceText: string;
@@ -147,7 +152,10 @@ export function contentRuntimeBootstrap() {
     dictionaryEdition: string;
     dictionaryHoverHoldMs: number;
     tolerantProviderOutput: boolean;
+    testMode: boolean;
   };
+
+  type TestLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
   type DictionaryEntry = {
     provider: 'wiktapi' | 'freedictionaryapi';
@@ -180,6 +188,18 @@ export function contentRuntimeBootstrap() {
     end: number;
   };
 
+  type SourceHoverSpan = {
+    sourceHoverId: string;
+    range: TextRange;
+    text: string;
+  };
+
+  type SourceHit = {
+    block: BlockState;
+    alignment: AlignmentSpan | null;
+    sourceSpan: SourceHoverSpan;
+  };
+
   type BlockState = {
     id: string;
     element: Element;
@@ -195,8 +215,9 @@ export function contentRuntimeBootstrap() {
 
   type ActiveHighlight = {
     blockId: string;
-    alignmentId: string;
+    alignmentId: string | null;
     origin: 'source' | 'target';
+    sourceSpan?: SourceHoverSpan;
   };
 
   type RuntimeStats = {
@@ -286,6 +307,15 @@ export function contentRuntimeBootstrap() {
     const version = ++lifecycleVersion;
     settings = await getSettings();
     runtimeStats = createRuntimeStats();
+    logTestEvent('info', 'runtime_enabled', {
+      targetLang: settings.targetLang,
+      requestChunkSize: settings.requestChunkSize,
+      requestConcurrency: settings.requestConcurrency,
+      contextWindowChars: settings.contextWindowChars,
+      translationRetryCount: settings.translationRetryCount,
+      tolerantProviderOutput: settings.tolerantProviderOutput,
+      dictionaryProvider: settings.dictionaryProvider,
+    });
     resetTranslationQueue();
     ensureStyle();
     ensureHighlightLayer();
@@ -309,6 +339,9 @@ export function contentRuntimeBootstrap() {
     }
 
     enabled = false;
+    logTestEvent('info', 'runtime_disabled', {
+      stats: runtimeStats,
+    });
     lifecycleVersion += 1;
     resetTranslationQueue();
     observer?.disconnect();
@@ -444,6 +477,10 @@ export function contentRuntimeBootstrap() {
     const roots = Array.from(pendingRoots);
     dirtyBlockIds.clear();
     pendingRoots.clear();
+    logTestEvent('debug', 'mutation_flush_started', {
+      dirtyBlockIds: dirtyIds.length,
+      pendingRoots: roots.length,
+    });
 
     const dirtyBlocks: BlockState[] = [];
 
@@ -540,10 +577,16 @@ export function contentRuntimeBootstrap() {
 
     if (newBlocks.length > 0) {
       runtimeStats.discovered += newBlocks.length;
+      logTestEvent('debug', 'text_blocks_discovered', {
+        newBlocks: newBlocks.length,
+        totalDiscovered: runtimeStats.discovered,
+        registeredBlocks: blocksById.size,
+      });
       updateStatusPanel(
         getUiMessage('statusFoundBlocksTranslating', String(runtimeStats.discovered)),
       );
     } else if (blocksById.size === 0) {
+      logTestEvent('info', 'text_blocks_not_found', {});
       updateStatusPanel(getUiMessage('statusNoBlocks'));
     }
 
@@ -569,6 +612,12 @@ export function contentRuntimeBootstrap() {
     const requestChunkSize = normalizePositiveInteger(settings.requestChunkSize, 1);
     const requestConcurrency = normalizePositiveInteger(settings.requestConcurrency, 64);
     runtimeStats.requested += states.length;
+    logTestEvent('info', 'translation_requested', {
+      blocks: states.length,
+      requestChunkSize,
+      requestConcurrency,
+      contextWindowChars,
+    });
     updateStatusPanel(buildStatusText(getUiMessage('statusTranslatingPrefix')));
 
     translationQueue = translationQueue
@@ -640,9 +689,21 @@ export function contentRuntimeBootstrap() {
               runtimeStats.lastError = truncateStatusText(response.diagnostics.lastOutputError);
             }
 
+            logTestEvent(response.diagnostics?.outputFailures ? 'warn' : 'debug', 'translation_chunk_completed', {
+              chunkIndex,
+              requestedBlocks: stateChunk.length,
+              returnedBlocks: response.blocks.length,
+              missingBlocks: missingCount,
+              diagnostics: response.diagnostics ?? null,
+            });
             applyChunkTranslations(stateChunk, response.blocks, snapshot);
           } catch (error) {
             runtimeStats.failed += stateChunk.length;
+            logTestEvent('error', 'translation_chunk_failed', {
+              chunkIndex,
+              requestedBlocks: stateChunk.length,
+              ...errorToLogDetails(error),
+            });
             reportRuntimeError(error);
           }
         }
@@ -702,6 +763,12 @@ export function contentRuntimeBootstrap() {
       runtimeStats.translated += 1;
     }
 
+    logTestEvent(runtimeStats.skipped > 0 ? 'warn' : 'debug', 'translation_rendered', {
+      chunkBlocks: states.length,
+      translatedTotal: runtimeStats.translated,
+      skippedTotal: runtimeStats.skipped,
+      failedTotal: runtimeStats.failed,
+    });
     updateStatusPanel(buildStatusText(getUiMessage('statusTranslationUpdatedPrefix')));
   }
 
@@ -1452,7 +1519,12 @@ export function contentRuntimeBootstrap() {
         const sourceHit = getSourceHit(event.clientX, event.clientY);
         if (sourceHit) {
           cancelDictionaryHideTimer();
-          setActiveHighlight(sourceHit.block, sourceHit.alignment.alignmentId, 'source');
+          setActiveHighlight(
+            sourceHit.block,
+            sourceHit.alignment?.alignmentId ?? null,
+            'source',
+            sourceHit.sourceSpan,
+          );
           return;
         }
 
@@ -1478,8 +1550,8 @@ export function contentRuntimeBootstrap() {
         if (activeHighlight) {
           const block = blocksById.get(activeHighlight.blockId);
           if (block) {
-            drawHighlight(block, activeHighlight.alignmentId);
-            positionDictionaryTooltip(block, activeHighlight.alignmentId);
+            drawHighlight(block, activeHighlight);
+            positionDictionaryTooltip(block);
           }
         }
       },
@@ -1495,8 +1567,8 @@ export function contentRuntimeBootstrap() {
       if (activeHighlight) {
         const block = blocksById.get(activeHighlight.blockId);
         if (block) {
-          drawHighlight(block, activeHighlight.alignmentId);
-          positionDictionaryTooltip(block, activeHighlight.alignmentId);
+          drawHighlight(block, activeHighlight);
+          positionDictionaryTooltip(block);
         }
       }
     });
@@ -1505,7 +1577,7 @@ export function contentRuntimeBootstrap() {
   function getSourceHit(
     clientX: number,
     clientY: number,
-  ): { block: BlockState; alignment: AlignmentSpan } | null {
+  ): SourceHit | null {
     const range = getCaretRangeFromPoint(clientX, clientY);
     if (range?.startContainer instanceof Text) {
       const block = findBlockForNode(range.startContainer);
@@ -1513,10 +1585,13 @@ export function contentRuntimeBootstrap() {
 
       if (block?.translation && segment) {
         const absoluteOffset = segment.start + range.startOffset;
-        const alignment = findAlignmentByOffset(block.translation.alignments, 'source', absoluteOffset);
-        if (alignment) {
-          return { block, alignment };
+        const sourceSpan = findSourceHoverSpanByOffset(block.text, absoluteOffset);
+        if (!sourceSpan) {
+          return null;
         }
+
+        const alignment = findAlignmentByOffset(block.translation.alignments, 'source', absoluteOffset);
+        return { block, alignment, sourceSpan };
       }
     }
 
@@ -1562,7 +1637,7 @@ export function contentRuntimeBootstrap() {
     block: BlockState,
     clientX: number,
     clientY: number,
-  ): { block: BlockState; alignment: AlignmentSpan } | null {
+  ): SourceHit | null {
     if (!(block.element instanceof HTMLInputElement) || !isTranslatableInputControl(block.element)) {
       return null;
     }
@@ -1572,8 +1647,13 @@ export function contentRuntimeBootstrap() {
       return null;
     }
 
+    const sourceSpan = findSourceHoverSpanByOffset(block.text, absoluteOffset);
+    if (!sourceSpan) {
+      return null;
+    }
+
     const alignment = findAlignmentByOffset(block.translation?.alignments ?? [], 'source', absoluteOffset);
-    return alignment ? { block, alignment } : null;
+    return { block, alignment, sourceSpan };
   }
 
   function getCaretRangeFromPoint(clientX: number, clientY: number): Range | null {
@@ -1596,20 +1676,21 @@ export function contentRuntimeBootstrap() {
 
   function setActiveHighlight(
     block: BlockState,
-    alignmentId: string,
+    alignmentId: string | null,
     origin: 'source' | 'target',
+    sourceSpan?: SourceHoverSpan,
   ): void {
     cancelDictionaryHideTimer();
 
+    const activeKey = buildActiveHighlightKey({ blockId: block.id, alignmentId, origin, sourceSpan });
     if (
       activeHighlight &&
       activeHighlight.blockId === block.id &&
-      activeHighlight.alignmentId === alignmentId &&
-      activeHighlight.origin === origin
+      buildActiveHighlightKey(activeHighlight) === activeKey
     ) {
       if (origin === 'source') {
-        armRecordTimer(block, alignmentId);
-        showDictionaryForSource(block, alignmentId);
+        armRecordTimer(block, activeHighlight);
+        showDictionaryForSource(block, activeHighlight);
       }
       return;
     }
@@ -1618,14 +1699,15 @@ export function contentRuntimeBootstrap() {
       blockId: block.id,
       alignmentId,
       origin,
+      sourceSpan,
     };
     completedRecordSignature = '';
 
-    drawHighlight(block, alignmentId);
+    drawHighlight(block, activeHighlight);
 
     if (origin === 'source') {
-      armRecordTimer(block, alignmentId);
-      showDictionaryForSource(block, alignmentId);
+      armRecordTimer(block, activeHighlight);
+      showDictionaryForSource(block, activeHighlight);
       return;
     }
 
@@ -1633,16 +1715,30 @@ export function contentRuntimeBootstrap() {
     hideDictionaryTooltip();
   }
 
-  function drawHighlight(block: BlockState, alignmentId: string): void {
-    const alignment = block.translation?.alignments.find((entry) => entry.alignmentId === alignmentId);
-    if (!alignment || !highlightLayer) {
+  function buildActiveHighlightKey(highlight: ActiveHighlight): string {
+    return [
+      highlight.origin,
+      highlight.alignmentId ?? '',
+      highlight.sourceSpan?.sourceHoverId ?? '',
+    ].join('::');
+  }
+
+  function drawHighlight(block: BlockState, highlight: ActiveHighlight): void {
+    const alignment = highlight.alignmentId && block.translation
+      ? block.translation.alignments.find((entry) => entry.alignmentId === highlight.alignmentId) ?? null
+      : null;
+    if ((highlight.origin === 'target' && !alignment) || !highlightLayer) {
       clearHighlight();
       return;
     }
 
     const rects = [
-      ...getSourceClientRects(block, alignment),
-      ...getTargetClientRects(block, alignmentId),
+      ...(highlight.sourceSpan
+        ? getSourceRangeClientRects(block, [highlight.sourceSpan.range])
+        : alignment
+          ? getSourceClientRects(block, alignment)
+          : []),
+      ...(alignment ? getTargetClientRects(block, alignment.alignmentId) : []),
     ].filter((rect) => rect.width > 0 && rect.height > 0);
 
     highlightLayer.replaceChildren();
@@ -1662,8 +1758,15 @@ export function contentRuntimeBootstrap() {
     block: BlockState,
     alignment: AlignmentSpan,
   ): Array<DOMRect & { kind: 'source' }> {
+    return getSourceRangeClientRects(block, alignment.sourceRanges);
+  }
+
+  function getSourceRangeClientRects(
+    block: BlockState,
+    sourceRanges: TextRange[],
+  ): Array<DOMRect & { kind: 'source' }> {
     if (block.segments.length === 0) {
-      return alignment.sourceRanges
+      return sourceRanges
         .map((range) => getInteractiveTextRect(block.element, block.text, range.start, range.end))
         .filter((rect): rect is DOMRect => Boolean(rect))
         .map((rect) => Object.assign(rect, { kind: 'source' as const }));
@@ -1671,7 +1774,7 @@ export function contentRuntimeBootstrap() {
 
     const rects: Array<DOMRect & { kind: 'source' }> = [];
 
-    for (const sourceRange of alignment.sourceRanges) {
+    for (const sourceRange of sourceRanges) {
       for (const segment of block.segments) {
         const start = Math.max(segment.start, sourceRange.start);
         const end = Math.min(segment.end, sourceRange.end);
@@ -1725,19 +1828,13 @@ export function contentRuntimeBootstrap() {
     return rects;
   }
 
-  function showDictionaryForSource(block: BlockState, alignmentId: string): void {
-    if (!settings || settings.dictionaryProvider === 'off' || !block.translation) {
+  function showDictionaryForSource(block: BlockState, highlight: ActiveHighlight): void {
+    if (!settings || settings.dictionaryProvider === 'off' || !block.translation || !highlight.sourceSpan) {
       hideDictionaryTooltip();
       return;
     }
 
-    const alignment = block.translation.alignments.find((entry) => entry.alignmentId === alignmentId);
-    if (!alignment) {
-      hideDictionaryTooltip();
-      return;
-    }
-
-    const sourceWord = alignment.sourceText.trim();
+    const sourceWord = highlight.sourceSpan.text.trim();
     const normalizedWord = normalizeWord(sourceWord);
     if (!normalizedWord) {
       hideDictionaryTooltip();
@@ -1751,23 +1848,33 @@ export function contentRuntimeBootstrap() {
       normalizedWord,
       sourceWord,
     ].join('::');
-    const signature = `${block.id}:${block.revision}:${alignmentId}:${lookupKey}`;
+    const signature = `${block.id}:${block.revision}:${highlight.sourceSpan.sourceHoverId}:${lookupKey}`;
 
     if (activeDictionarySignature === signature && dictionaryTooltip?.isConnected) {
-      positionDictionaryTooltip(block, alignmentId);
+      positionDictionaryTooltip(block);
       return;
     }
 
     activeDictionarySignature = signature;
     const requestId = ++dictionaryRequestSerial;
-    renderDictionaryLoading(sourceWord, block, alignmentId);
+    renderDictionaryLoading(sourceWord, block);
 
     const cached = dictionaryResultCache.get(lookupKey);
     if (cached) {
-      renderDictionaryResult(cached, block, alignmentId);
+      logTestEvent('debug', 'dictionary_cache_hit', {
+        provider: settings.dictionaryProvider,
+        sourceLang: block.translation.sourceLang,
+        targetLang: settings.targetLang,
+      });
+      renderDictionaryResult(cached, block);
       return;
     }
 
+    logTestEvent('debug', 'dictionary_lookup_requested', {
+      provider: settings.dictionaryProvider,
+      sourceLang: block.translation.sourceLang,
+      targetLang: settings.targetLang,
+    });
     void sendMessageToBackground<DictionaryLookupResult>({
       type: 'dictionary:lookup',
       payload: {
@@ -1781,17 +1888,24 @@ export function contentRuntimeBootstrap() {
         if (requestId !== dictionaryRequestSerial || activeDictionarySignature !== signature) {
           return;
         }
-        renderDictionaryResult(result, block, alignmentId);
+        logTestEvent('debug', 'dictionary_lookup_completed', {
+          provider: result.provider,
+          entries: result.entries.length,
+          sourceLang: result.sourceLang,
+          targetLang: result.targetLang,
+        });
+        renderDictionaryResult(result, block);
       })
       .catch((error: unknown) => {
         if (requestId !== dictionaryRequestSerial || activeDictionarySignature !== signature) {
           return;
         }
-        renderDictionaryError(error, block, alignmentId);
+        logTestEvent('error', 'dictionary_lookup_failed', errorToLogDetails(error));
+        renderDictionaryError(error, block);
       });
   }
 
-  function renderDictionaryLoading(word: string, block: BlockState, alignmentId: string): void {
+  function renderDictionaryLoading(word: string, block: BlockState): void {
     const tooltip = ensureDictionaryTooltip();
     tooltip.replaceChildren(
       buildDictionaryHeader(
@@ -1800,13 +1914,12 @@ export function contentRuntimeBootstrap() {
         getUiMessage('dictionaryLoading'),
       ),
     );
-    positionDictionaryTooltip(block, alignmentId);
+    positionDictionaryTooltip(block);
   }
 
   function renderDictionaryResult(
     result: DictionaryLookupResult,
     block: BlockState,
-    alignmentId: string,
   ): void {
     const tooltip = ensureDictionaryTooltip();
     const providerName = getDictionaryProviderLabel(result.provider);
@@ -1817,7 +1930,7 @@ export function contentRuntimeBootstrap() {
       empty.className = 'dlt-dictionary-empty';
       empty.textContent = getUiMessage('dictionaryEmpty');
       tooltip.replaceChildren(header, empty, buildDictionaryFooter(result));
-      positionDictionaryTooltip(block, alignmentId);
+      positionDictionaryTooltip(block);
       return;
     }
 
@@ -1828,10 +1941,10 @@ export function contentRuntimeBootstrap() {
     }
 
     tooltip.replaceChildren(header, list, buildDictionaryFooter(result));
-    positionDictionaryTooltip(block, alignmentId);
+    positionDictionaryTooltip(block);
   }
 
-  function renderDictionaryError(error: unknown, block: BlockState, alignmentId: string): void {
+  function renderDictionaryError(error: unknown, block: BlockState): void {
     const tooltip = ensureDictionaryTooltip();
     const message = error instanceof Error ? error.message : getUiMessage('dictionaryLookupFailed');
     const body = document.createElement('div');
@@ -1845,7 +1958,7 @@ export function contentRuntimeBootstrap() {
       ),
       body,
     );
-    positionDictionaryTooltip(block, alignmentId);
+    positionDictionaryTooltip(block);
   }
 
   function buildDictionaryHeader(
@@ -1932,18 +2045,26 @@ export function contentRuntimeBootstrap() {
     return footer;
   }
 
-  function positionDictionaryTooltip(block: BlockState, alignmentId: string): void {
+  function positionDictionaryTooltip(block: BlockState): void {
     if (!dictionaryTooltip?.isConnected) {
       return;
     }
 
-    const alignment = block.translation?.alignments.find((entry) => entry.alignmentId === alignmentId);
-    if (!alignment) {
+    if (!activeHighlight || activeHighlight.blockId !== block.id) {
       hideDictionaryTooltip();
       return;
     }
 
-    const sourceRect = getSourceClientRects(block, alignment)[0];
+    const highlight = activeHighlight;
+    const alignment = highlight.alignmentId && block.translation
+      ? block.translation.alignments.find((entry) => entry.alignmentId === highlight.alignmentId) ?? null
+      : null;
+    const sourceRects = highlight.sourceSpan
+      ? getSourceRangeClientRects(block, [highlight.sourceSpan.range])
+      : alignment
+        ? getSourceClientRects(block, alignment)
+        : [];
+    const sourceRect = sourceRects[0];
     if (!sourceRect) {
       hideDictionaryTooltip();
       return;
@@ -1984,13 +2105,13 @@ export function contentRuntimeBootstrap() {
     return 'Dictionary off';
   }
 
-  function armRecordTimer(block: BlockState, alignmentId: string): void {
-    if (!block.translation) {
+  function armRecordTimer(block: BlockState, highlight: ActiveHighlight): void {
+    if (!block.translation || !highlight.sourceSpan) {
       cancelRecordTimer();
       return;
     }
 
-    const signature = `${block.id}:${block.revision}:${alignmentId}`;
+    const signature = `${block.id}:${block.revision}:${highlight.sourceSpan.sourceHoverId}`;
     if (pendingRecordSignature === signature && recordTimer !== null) {
       return;
     }
@@ -2003,25 +2124,20 @@ export function contentRuntimeBootstrap() {
 
     recordTimer = window.setTimeout(() => {
       recordTimer = null;
-      void persistRecordedWord(block, alignmentId, signature).catch(reportRuntimeError);
+      void persistRecordedWord(block, highlight.sourceSpan, signature).catch(reportRuntimeError);
     }, RECORD_DELAY_MS);
   }
 
   async function persistRecordedWord(
     block: BlockState,
-    alignmentId: string,
+    sourceSpan: SourceHoverSpan | undefined,
     signature: string,
   ): Promise<void> {
-    if (!enabled || pendingRecordSignature !== signature || !block.translation || !settings) {
+    if (!enabled || pendingRecordSignature !== signature || !block.translation || !settings || !sourceSpan) {
       return;
     }
 
-    const alignment = block.translation.alignments.find((entry) => entry.alignmentId === alignmentId);
-    if (!alignment) {
-      return;
-    }
-
-    const sourceWord = alignment.sourceText.trim();
+    const sourceWord = sourceSpan.text.trim();
     const normalizedWord = normalizeWord(sourceWord);
 
     if (!normalizedWord) {
@@ -2029,6 +2145,11 @@ export function contentRuntimeBootstrap() {
     }
 
     completedRecordSignature = signature;
+    logTestEvent('info', 'word_record_requested', {
+      normalizedWord,
+      sourceLang: block.translation.sourceLang,
+      targetLang: settings.targetLang,
+    });
 
     await sendMessageToBackground({
       type: 'record:hover-hit',
@@ -2042,6 +2163,11 @@ export function contentRuntimeBootstrap() {
         translatedSentence: collapseWhitespace(block.translation.translatedText),
         timestamp: Date.now(),
       },
+    });
+    logTestEvent('info', 'word_record_completed', {
+      normalizedWord,
+      sourceLang: block.translation.sourceLang,
+      targetLang: settings.targetLang,
     });
   }
 
@@ -2158,6 +2284,9 @@ export function contentRuntimeBootstrap() {
     }
 
     const version = ++lifecycleVersion;
+    logTestEvent('info', 'route_changed', {
+      href: location.href,
+    });
     resetTranslationQueue();
     clearHighlight();
     cleanupAllBlocks();
@@ -2413,6 +2542,27 @@ export function contentRuntimeBootstrap() {
     return response.settings;
   }
 
+  function logTestEvent(
+    level: TestLogLevel,
+    event: string,
+    details: Record<string, unknown>,
+  ): void {
+    if (!settings?.testMode) {
+      return;
+    }
+
+    void sendMessageToBackground({
+      type: 'test-log:add',
+      payload: {
+        level,
+        source: 'content',
+        event,
+        pageUrl: location.href,
+        details,
+      },
+    }).catch(() => undefined);
+  }
+
   async function sendMessageToBackground<TResponse>(message: object): Promise<TResponse> {
     const response = (await chrome.runtime.sendMessage(message)) as { error?: string } & TResponse;
     if (response?.error) {
@@ -2480,7 +2630,22 @@ export function contentRuntimeBootstrap() {
     const message = error instanceof Error ? error.message : String(error);
     runtimeStats.lastError = truncateStatusText(message);
     updateStatusPanel(buildStatusText(getUiMessage('statusTranslationErrorPrefix')));
+    logTestEvent('error', 'runtime_error', errorToLogDetails(error));
     console.error('[metatranslation]', error);
+  }
+
+  function errorToLogDetails(error: unknown): Record<string, unknown> {
+    if (error instanceof Error) {
+      return {
+        name: error.name,
+        message: error.message,
+        stack: error.stack ?? '',
+      };
+    }
+
+    return {
+      message: String(error),
+    };
   }
 
   function createRuntimeStats(): RuntimeStats {
@@ -2512,6 +2677,34 @@ export function contentRuntimeBootstrap() {
         return entry.sourceRanges.some((range) => offset >= range.start && offset < range.end);
       }) ?? null
     );
+  }
+
+  function findSourceHoverSpanByOffset(text: string, offset: number): SourceHoverSpan | null {
+    SOURCE_SPAN_PATTERN.lastIndex = 0;
+
+    let previous: SourceHoverSpan | null = null;
+    for (const match of text.matchAll(SOURCE_SPAN_PATTERN)) {
+      const value = match[0];
+      const start = match.index ?? 0;
+      const span = {
+        sourceHoverId: `source:${start}:${start + value.length}`,
+        range: {
+          start,
+          end: start + value.length,
+        },
+        text: value,
+      };
+
+      if (offset >= span.range.start && offset < span.range.end) {
+        return span;
+      }
+
+      if (offset === span.range.end) {
+        previous = span;
+      }
+    }
+
+    return previous && offset === previous.range.end ? previous : null;
   }
 
   function estimateLinearTextOffset(
