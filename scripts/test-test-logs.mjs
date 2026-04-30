@@ -38,6 +38,31 @@ test('sanitizes test log details before storage', () => {
   });
 });
 
+test('keeps full provider payload strings while redacting secrets', () => {
+  const longText = 'x'.repeat(2000);
+  const entry = buildTestLogEntry(
+    {
+      level: 'debug',
+      source: 'background',
+      event: 'provider_request_succeeded',
+      details: {
+        message: longText,
+        providerRequestBody: `${longText} https://provider.example/v1?api_key=request-secret`,
+        providerResponseBody: `${longText} Bearer response-token`,
+        providerMessageText: `${longText} sk-1234567890abcdef`,
+      },
+    },
+    123,
+  );
+
+  assert.equal(entry.details.message.length, 1200);
+  assert.equal(entry.details.message.endsWith('...'), true);
+  assert.equal(entry.details.providerRequestBody.length > 2000, true);
+  assert.match(entry.details.providerRequestBody, /api_key=\[redacted\]/);
+  assert.equal(entry.details.providerResponseBody, `${longText} Bearer [redacted]`);
+  assert.equal(entry.details.providerMessageText, `${longText} sk-[redacted]`);
+});
+
 test('keeps test logs in a bounded ring buffer', () => {
   const logs = [
     buildTestLogEntry({ level: 'info', source: 'background', event: 'one' }, 1),

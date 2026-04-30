@@ -184,7 +184,7 @@
     "description": "Test mode setting label."
   },
   "testModeHelp": {
-    "message": "When enabled, background and content runtime events are stored locally in a bounded log for troubleshooting. API keys are redacted.",
+    "message": "When enabled, background and content runtime events are stored locally for troubleshooting, including full provider request and response bodies. API keys are redacted.",
     "description": "Test mode setting help text."
   },
   "saveSettingsButton": {

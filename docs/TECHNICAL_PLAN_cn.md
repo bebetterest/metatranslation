@@ -65,7 +65,7 @@
 - 通过 overlay 矩形进行 source/target 悬浮高亮。
 - 源文侧悬浮字典弹窗，provider 可配置为 `WiktApi`、`FreeDictionaryAPI` 或 `Off`，弹窗保活窗口可配置且默认 `1000ms`。WiktApi edition 仍作为兼容存储的内部字段保留，但不再暴露在 Options 页面，并会归一化为默认英文 edition。字典查询在 background service worker 中执行，会先保留查询词大小写再小写回退；拉丁词先查英文再回退到全语言查询；全语言结果会按可能的源语言排序，但不会把页面语言提示当作硬过滤条件；结果缓存在 IndexedDB，并向 content tooltip 提供释义、发音、例句、翻译、attribution 和 source links。
 - 页面内诊断状态浮层，用于显示翻译进度、跳过 block 数、失败 chunk、invalid/empty sanitized blocks、id mismatches 和最近 provider 错误。Background diagnostics 还会包含更细的 provider-output failure counts，以及 accepted provider blocks 的聚合 alignment coverage。
-- 可选 Test Mode 会为 background 和 content-runtime 事件写入有上限的本地排障日志，包括 action 切换、runtime 生命周期、扫描、mutation flush、缓存检查、provider 请求、翻译 diagnostics、字典查询和词汇记录。日志详情在存储前会脱敏 API keys、authorization headers、tokens、secrets 和 passwords；不会有意记录完整翻译请求文本。
+- 可选 Test Mode 会为 background 和 content-runtime 事件写入有上限的本地排障日志，包括 action 切换、runtime 生命周期、扫描、mutation flush、缓存检查、provider 请求、翻译 diagnostics、字典查询和词汇记录。Provider 请求尝试还会记录完整 provider 请求体、完整 provider 响应正文，以及提取出的模型消息文本，便于检查模型输出问题。日志详情在存储前会脱敏 API keys、authorization headers、tokens、secrets 和 passwords。
 - 对 `input[type=button|submit|reset]` 支持基于几何位置的悬浮。
 - 源文稳定悬浮 2 秒后记录词汇。
 - IndexedDB 翻译缓存、聚合记录和事件历史。翻译缓存键包含 alignment-contract version 和 adjacent context hash，避免旧缓存结构和上下文敏感译文流入不兼容请求。

@@ -11,11 +11,16 @@ export const TEST_LOG_LIMIT = 500;
 const TEST_LOGS_STORAGE_KEY = 'testLogs';
 const MAX_EVENT_LENGTH = 120;
 const MAX_URL_LENGTH = 1500;
-const MAX_STRING_LENGTH = 1200;
+const MAX_DETAIL_STRING_LENGTH = 1200;
 const MAX_ARRAY_ITEMS = 40;
 const MAX_OBJECT_KEYS = 60;
 const MAX_DEPTH = 4;
 const REDACTED = '[redacted]';
+const FULL_TEXT_DETAIL_KEYS = new Set([
+  'providerRequestBody',
+  'providerResponseBody',
+  'providerMessageText',
+]);
 
 let appendQueue = Promise.resolve();
 
@@ -150,7 +155,7 @@ function sanitizeDetails(value: unknown): Record<string, unknown> {
   return isPlainObject(sanitized) ? sanitized : {};
 }
 
-function sanitizeValue(value: unknown, depth: number): unknown {
+function sanitizeValue(value: unknown, depth: number, key = ''): unknown {
   if (value === null || typeof value === 'boolean') {
     return value;
   }
@@ -160,7 +165,10 @@ function sanitizeValue(value: unknown, depth: number): unknown {
   }
 
   if (typeof value === 'string') {
-    return redactString(truncateString(value, MAX_STRING_LENGTH));
+    const normalized = shouldKeepFullDetailString(key)
+      ? value
+      : truncateString(value, MAX_DETAIL_STRING_LENGTH);
+    return redactString(normalized);
   }
 
   if (Array.isArray(value)) {
@@ -168,7 +176,7 @@ function sanitizeValue(value: unknown, depth: number): unknown {
       return '[array]';
     }
 
-    return value.slice(0, MAX_ARRAY_ITEMS).map((item) => sanitizeValue(item, depth + 1));
+    return value.slice(0, MAX_ARRAY_ITEMS).map((item) => sanitizeValue(item, depth + 1, key));
   }
 
   if (isPlainObject(value)) {
@@ -181,7 +189,7 @@ function sanitizeValue(value: unknown, depth: number): unknown {
     for (const [key, entryValue] of entries) {
       result[truncateString(key, MAX_EVENT_LENGTH)] = isSensitiveKey(key)
         ? REDACTED
-        : sanitizeValue(entryValue, depth + 1);
+        : sanitizeValue(entryValue, depth + 1, key);
     }
     return result;
   }
@@ -191,6 +199,10 @@ function sanitizeValue(value: unknown, depth: number): unknown {
 
 function isSensitiveKey(key: string): boolean {
   return /(api[-_ ]?key|authorization|bearer|token|secret|password)/i.test(key);
+}
+
+function shouldKeepFullDetailString(key: string): boolean {
+  return FULL_TEXT_DETAIL_KEYS.has(key);
 }
 
 function redactString(value: string): string {

@@ -277,7 +277,7 @@ If `package.json` changes but the `version` value is unchanged, the workflow exi
 - Page text selected for translation is sent to the configured provider.
 - API keys are stored in `chrome.storage.local`.
 - Translation cache, dictionary cache, word records, and word events are stored locally in IndexedDB.
-- Test Mode logs are stored locally in `chrome.storage.local` only while enabled, retain a bounded recent history, and redact API keys, authorization headers, tokens, secrets, and passwords. They may include page URLs, event metadata, diagnostics, and hovered or recorded words, but full translation request text is not intentionally logged.
+- Test Mode logs are stored locally in `chrome.storage.local` only while enabled, retain a bounded recent history, and redact API keys, authorization headers, tokens, secrets, and passwords. They may include page URLs, event metadata, diagnostics, hovered or recorded words, the full provider request body, the full provider response body, and the extracted model message text so provider-output problems can be investigated.
 - The extension does not intentionally send records or cache contents to any service other than the configured translation provider and dictionary providers.
 - Dictionary lookup sends the hovered source word plus language metadata to the selected dictionary provider.
 - The `declarativeNetRequestWithHostAccess` permission is used only to remove the `Origin` request header from extension background requests to local Ollama on port `11434`.

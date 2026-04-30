@@ -299,6 +299,10 @@ async function requestTranslationChunk(
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), settings.timeoutMs);
     const startedAt = Date.now();
+    const requestBody = buildRequestBody(settings, request, blocks, strictRetry);
+    const providerRequestBody = JSON.stringify(requestBody);
+    let providerResponseBody = '';
+    let providerMessageText = '';
 
     try {
       await logTranslationEvent(settings, 'debug', 'provider_request_started', request.pageUrl, {
@@ -309,6 +313,7 @@ async function requestTranslationChunk(
         blockCount: blocks.length,
         requestUrl,
         model: settings.model,
+        providerRequestBody,
       });
 
       const response = await fetch(requestUrl, {
@@ -318,9 +323,10 @@ async function requestTranslationChunk(
           Authorization: `Bearer ${settings.apiKey}`,
           ...buildProviderHeaders(settings),
         },
-        body: JSON.stringify(buildRequestBody(settings, request, blocks, strictRetry)),
+        body: providerRequestBody,
         signal: controller.signal,
       });
+      providerResponseBody = await response.text();
 
       if (!response.ok) {
         await logTranslationEvent(settings, 'warn', 'provider_request_status_failed', request.pageUrl, {
@@ -330,20 +336,21 @@ async function requestTranslationChunk(
           retrying: attempt < maxAttempts - 1 && shouldRetryStatus(response.status),
           durationMs: Date.now() - startedAt,
           blockIds: blocks.map((block) => block.id),
+          providerResponseBody,
         });
         if (attempt < maxAttempts - 1 && shouldRetryStatus(response.status)) {
           await sleep(250 * (attempt + 1));
           continue;
         }
-        const errorText = await readResponseText(response);
+        const errorText = truncateErrorText(providerResponseBody);
         throw new Error(
           `Translation API failed with status ${response.status}${errorText ? `: ${errorText}` : ''}.`,
         );
       }
 
-      const payload = (await response.json()) as ChatCompletionResponse;
-      const text = extractMessageText(payload);
-      const parsed = parseJsonObject(text);
+      const payload = parseChatCompletionResponseBody(providerResponseBody);
+      providerMessageText = extractMessageText(payload);
+      const parsed = parseJsonObject(providerMessageText);
 
       if (!isPlainObject(parsed) || !Array.isArray(parsed.blocks)) {
         throw new TranslationOutputError('Translation API returned JSON without a blocks array.');
@@ -354,7 +361,9 @@ async function requestTranslationChunk(
         durationMs: Date.now() - startedAt,
         blockIds: blocks.map((block) => block.id),
         rawBlockCount: parsed.blocks.length,
-        responseTextChars: text.length,
+        responseTextChars: providerMessageText.length,
+        providerResponseBody,
+        providerMessageText,
       });
       return parsed.blocks as RawTranslationBlockLike[];
     } catch (error) {
@@ -365,6 +374,8 @@ async function requestTranslationChunk(
         retrying: attempt < maxAttempts - 1 && shouldRetryError(error),
         durationMs: Date.now() - startedAt,
         blockIds: blocks.map((block) => block.id),
+        ...(providerResponseBody ? { providerResponseBody } : {}),
+        ...(providerMessageText ? { providerMessageText } : {}),
         ...errorToLogDetails(error),
       });
       if (attempt >= maxAttempts - 1 || !shouldRetryError(error)) {
@@ -784,11 +795,11 @@ function computeRatio(value: number, total: number): number {
   return total > 0 ? value / total : 0;
 }
 
-async function readResponseText(response: Response): Promise<string> {
+function parseChatCompletionResponseBody(responseBody: string): ChatCompletionResponse {
   try {
-    return truncateErrorText(await response.text());
+    return JSON.parse(responseBody) as ChatCompletionResponse;
   } catch {
-    return '';
+    throw new Error('Translation API returned a response body that was not valid JSON.');
   }
 }
 

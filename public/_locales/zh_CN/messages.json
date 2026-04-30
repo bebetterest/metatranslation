@@ -184,7 +184,7 @@
     "description": "测试模式设置标签。"
   },
   "testModeHelp": {
-    "message": "开启后，background 和 content runtime 事件会写入有上限的本地日志，便于排查问题。API keys 会被脱敏。",
+    "message": "开启后，background 和 content runtime 事件会写入本地排障日志，包括完整 provider 请求体和响应正文。API keys 会被脱敏。",
     "description": "测试模式设置说明。"
   },
   "saveSettingsButton": {

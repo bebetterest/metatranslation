@@ -12,6 +12,7 @@ const baseSettings = {
   contextWindowChars: 100,
   translationRetryCount: 2,
   tolerantProviderOutput: false,
+  testMode: false,
 };
 
 const baseRequest = {
@@ -156,6 +157,37 @@ await test('injects non-default target language into prompt', async () => {
 
   assert.match(calls[0].body.messages[1].content, /Configured target language: ja-JP \(Japanese\)/);
   assert.doesNotMatch(calls[0].body.messages[1].content, /Configured target language: zh-CN/);
+});
+
+await test('test mode stores full provider request and response bodies', async () => {
+  const calls = [];
+
+  await withChromeStorageMock(async (store) => {
+    await withMockFetch(calls, [chatResponse(JSON.stringify(validPayload()))], async () => {
+      await translateBlocks(
+        {
+          ...baseSettings,
+          testMode: true,
+        },
+        baseRequest,
+      );
+    });
+
+    const logs = store.testLogs;
+    assert.equal(Array.isArray(logs), true);
+    const started = logs.find((entry) => entry.event === 'provider_request_started');
+    const succeeded = logs.find((entry) => entry.event === 'provider_request_succeeded');
+
+    assert.equal(typeof started.details.providerRequestBody, 'string');
+    const requestBody = JSON.parse(started.details.providerRequestBody);
+    assert.equal(requestBody.model, 'test-model');
+    assert.equal(extractPromptBlocks(requestBody.messages[1].content)[0].text, baseRequest.blocks[0].text);
+
+    assert.equal(typeof succeeded.details.providerResponseBody, 'string');
+    const responseBody = JSON.parse(succeeded.details.providerResponseBody);
+    assert.equal(responseBody.choices[0].message.content, JSON.stringify(validPayload()));
+    assert.equal(succeeded.details.providerMessageText, JSON.stringify(validPayload()));
+  });
 });
 
 await test('keeps OpenRouter compatibility in headers only', async () => {
@@ -449,19 +481,53 @@ async function withMockFetch(calls, responses, callback) {
   }
 }
 
+async function withChromeStorageMock(callback) {
+  const originalChrome = globalThis.chrome;
+  const store = {};
+
+  globalThis.chrome = {
+    storage: {
+      local: {
+        get: async (key) => ({
+          [key]: store[key],
+        }),
+        set: async (values) => {
+          Object.assign(store, values);
+        },
+        remove: async (key) => {
+          delete store[key];
+        },
+      },
+    },
+  };
+
+  try {
+    await callback(store);
+  } finally {
+    if (typeof originalChrome === 'undefined') {
+      delete globalThis.chrome;
+    } else {
+      globalThis.chrome = originalChrome;
+    }
+  }
+}
+
 function chatResponse(content) {
+  const body = JSON.stringify({
+    choices: [
+      {
+        message: {
+          content,
+        },
+      },
+    ],
+  });
+
   return {
     ok: true,
     status: 200,
-    json: async () => ({
-      choices: [
-        {
-          message: {
-            content,
-          },
-        },
-      ],
-    }),
+    text: async () => body,
+    json: async () => JSON.parse(body),
   };
 }
 

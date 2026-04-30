@@ -277,7 +277,7 @@ npm run package:zip
 - 被选中用于翻译的页面文本会发送到配置的 provider。
 - API key 存储在 `chrome.storage.local`。
 - 翻译缓存、字典缓存、词汇记录和词汇事件存储在本地 IndexedDB。
-- Test Mode 日志仅在开启时写入并存储在本地 `chrome.storage.local`，只保留有上限的最近历史，并会脱敏 API keys、authorization headers、tokens、secrets 和 passwords。日志可能包含页面 URL、事件元数据、diagnostics，以及悬浮或记录的词，但不会有意记录完整翻译请求文本。
+- Test Mode 日志仅在开启时写入并存储在本地 `chrome.storage.local`，只保留有上限的最近历史，并会脱敏 API keys、authorization headers、tokens、secrets 和 passwords。日志可能包含页面 URL、事件元数据、diagnostics、悬浮或记录的词、完整 provider 请求体、完整 provider 响应正文，以及提取出的模型消息文本，便于排查 provider 输出问题。
 - 除配置的翻译 provider 和字典 provider 外，扩展不会有意发送 records 或 cache 内容。
 - 字典查询会把悬浮的源词和语言元数据发送到选定字典 provider。
 - `declarativeNetRequestWithHostAccess` 权限只用于对发往本地 Ollama `11434` 端口的扩展 background 请求移除 `Origin` 请求头。
