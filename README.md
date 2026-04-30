@@ -44,7 +44,7 @@
 
 ## Project Status
 
-metatranslation is a Chromium Manifest V3 extension focused on reading workflows where the original page still matters. It does not replace source text. Instead, it injects translated lines beside the original reading flow, uses model-returned source-span alignment for hover highlighting, and records vocabulary only after a stable source-side hover.
+metatranslation is a Chromium Manifest V3 extension focused on reading workflows where the original page still matters. It does not replace source text. Instead, it injects translated lines beside the original reading flow, uses model-returned source-span alignment for hover highlighting, and records vocabulary from local source-word hovers.
 
 Current release posture:
 
@@ -75,8 +75,8 @@ Current release posture:
 | Rendering | Source DOM text remains in place. Translation nodes inherit source text style and are removable on disable. Dense flex/grid and overlay labels use internal second-line rendering. |
 | Translation | OpenAI-compatible provider calls with structured JSON schema output, configurable target language, context window, concurrency, chunk size, timeout, and retry count. |
 | Alignment | The model returns `translatedParts[].sourceSpanIds`; the extension derives runtime source and target ranges locally. Strict and tolerant validation modes are supported. |
-| Dictionary | Source-hover dictionary popup can use WiktApi, FreeDictionaryAPI, or be turned off. Dictionary lookup keeps original word casing, queries Latin words in English before all-language fallback, ranks all-language results by likely source language, and caches normalized results locally. |
-| Records | Stable 2-second source-side hover records vocabulary hits, aggregate counts, last seen context, URL, and event history. |
+| Dictionary | Source-hover dictionary popup can use WiktApi, FreeDictionaryAPI, or be turned off. Source-side lookup uses the locally segmented source word under the pointer, even when model alignment groups multiple source spans. Dictionary lookup keeps original word casing, queries Latin words in English before all-language fallback, ranks all-language results by likely source language, and caches normalized results locally. |
+| Records | Stable 2-second source-side word hover records vocabulary hits, aggregate counts, last seen context, URL, and event history. |
 | Export | Records CSV export includes a UTF-8 BOM and neutralizes spreadsheet formula prefixes from untrusted page text. |
 | Diagnostics | In-page status panel plus background diagnostics for skipped blocks, failed chunks, provider-output failure categories, alignment coverage, and optional Test Mode event logs. |
 | UI Language | Extension UI follows the browser UI language. English is the default locale and Simplified Chinese is supported; this is independent of `Target Language`. |
@@ -162,8 +162,8 @@ Provider request details:
 - Trigger again on the same document to disable and remove injected nodes.
 - Navigate to a new document and trigger translation again; full-page navigation resets the previous page state.
 - Hover a source span or translated span to highlight the aligned counterpart.
-- Hover a source span for 2 seconds to record vocabulary when a valid alignment exists.
-- Hover a source span to open the dictionary popup when dictionary lookup is enabled.
+- Hover a source word for 2 seconds to record vocabulary after translation is available.
+- Hover a source word to open the dictionary popup when dictionary lookup is enabled. The target highlight still follows the model alignment for that word when one exists.
 - Use the options page to search, sort, and export vocabulary records.
 - Enable `Test Mode` on the options page while reproducing an issue, then refresh or export the Test Logs panel as JSON.
 - Use the browser UI language to switch extension UI between English and Simplified Chinese. Keep `Target Language` for translation output only.

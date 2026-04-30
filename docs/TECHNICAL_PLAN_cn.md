@@ -62,12 +62,12 @@
 - Provider prompt 现在发送三个多语言 format-only few-shot 示例，而不是之前较大的、主要面向中文的示例集：英译简中示例覆盖上下文消歧、目标语重排、冠词和标点不对齐；日译英示例覆盖 CJK 字符组合、助词和空格；英译西班牙语示例覆盖非连续 phrasal verbs 和 clitics。
 - 严格对齐校验，并分别检查 source/target 真实重叠。Source ranges 由本地 source span ids 计算，包括 `["s1", "s5"]` 这类非连续数组；target ranges 由 translated part 顺序计算。为兼容旧输出，legacy offset-style 输出仍会被接受。
 - 聚焦 alignment 校验回归脚本，覆盖 translated parts、重排、overlap、source-span anchored 输出、相邻 CJK span 组合、重复目标文本、非连续 source spans、可恢复 legacy offset 修复、不可恢复 ranges、重复 alignment id 和模糊文本修复。
-- 通过 overlay 矩形进行 source/target 悬浮高亮。
-- 源文侧悬浮字典弹窗，provider 可配置为 `WiktApi`、`FreeDictionaryAPI` 或 `Off`，弹窗保活窗口可配置且默认 `1000ms`。WiktApi edition 仍作为兼容存储的内部字段保留，但不再暴露在 Options 页面，并会归一化为默认英文 edition。字典查询在 background service worker 中执行，会先保留查询词大小写再小写回退；拉丁词先查英文再回退到全语言查询；全语言结果会按可能的源语言排序，但不会把页面语言提示当作硬过滤条件；结果缓存在 IndexedDB，并向 content tooltip 提供释义、发音、例句、翻译、attribution 和 source links。
+- 通过 overlay 矩形进行 source/target 悬浮高亮。源文侧指针命中使用本地 source-span 表做单词级 hover；目标侧 hover 仍使用已校验的模型 alignment。
+- 源文侧悬浮字典弹窗，provider 可配置为 `WiktApi`、`FreeDictionaryAPI` 或 `Off`，弹窗保活窗口可配置且默认 `1000ms`。源文查词和记录使用指针下方本地切分出的源词，即使模型 alignment 把多个 source spans 合成一个 target part 也不会查整组短语。WiktApi edition 仍作为兼容存储的内部字段保留，但不再暴露在 Options 页面，并会归一化为默认英文 edition。字典查询在 background service worker 中执行，会先保留查询词大小写再小写回退；拉丁词先查英文再回退到全语言查询；全语言结果会按可能的源语言排序，但不会把页面语言提示当作硬过滤条件；结果缓存在 IndexedDB，并向 content tooltip 提供释义、发音、例句、翻译、attribution 和 source links。
 - 页面内诊断状态浮层，用于显示翻译进度、跳过 block 数、失败 chunk、invalid/empty sanitized blocks、id mismatches 和最近 provider 错误。Background diagnostics 还会包含更细的 provider-output failure counts，以及 accepted provider blocks 的聚合 alignment coverage。
 - 可选 Test Mode 会为 background 和 content-runtime 事件写入有上限的本地排障日志，包括 action 切换、runtime 生命周期、扫描、mutation flush、缓存检查、provider 请求、翻译 diagnostics、字典查询和词汇记录。Provider 请求尝试还会记录完整 provider 请求体、完整 provider 响应正文，以及提取出的模型消息文本，便于检查模型输出问题。日志详情在存储前会脱敏 API keys、authorization headers、tokens、secrets 和 passwords。
 - 对 `input[type=button|submit|reset]` 支持基于几何位置的悬浮。
-- 源文稳定悬浮 2 秒后记录词汇。
+- 源词稳定悬浮 2 秒后记录词汇。
 - IndexedDB 翻译缓存、聚合记录和事件历史。翻译缓存键包含 alignment-contract version 和 adjacent context hash，避免旧缓存结构和上下文敏感译文流入不兼容请求。
 - Options 页面设置、本地化 helper text、Test Logs 刷新/导出/清空控件、记录搜索/排序和带 UTF-8 BOM 且中和公式前缀的 CSV 导出。
 - 版本化 zip 打包。

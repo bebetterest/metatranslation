@@ -44,7 +44,7 @@
 
 ## 项目状态
 
-metatranslation 是一个 Chromium Manifest V3 扩展，面向仍然需要保留原文阅读语境的网页翻译场景。它不会替换源文本，而是在原始阅读流旁注入译文行，使用模型返回的 source-span alignment 做悬浮高亮，并且只在源文侧稳定悬浮后记录词汇。
+metatranslation 是一个 Chromium Manifest V3 扩展，面向仍然需要保留原文阅读语境的网页翻译场景。它不会替换源文本，而是在原始阅读流旁注入译文行，使用模型返回的 source-span alignment 做悬浮高亮，并基于本地源词悬浮记录词汇。
 
 当前发布状态：
 
@@ -75,8 +75,8 @@ metatranslation 是一个 Chromium Manifest V3 扩展，面向仍然需要保留
 | 渲染 | 源 DOM 文本保持原位。译文节点继承源文本样式，并可在关闭时清理。密集 flex/grid 和 overlay label 使用内部第二行渲染。 |
 | 翻译 | OpenAI 兼容 provider 调用，使用 structured JSON schema 输出，并支持配置目标语言、上下文窗口、并发、chunk size、超时和重试次数。 |
 | 对齐 | 模型返回 `translatedParts[].sourceSpanIds`；扩展在本地派生运行时 source/target ranges。支持严格和容错校验模式。 |
-| 字典 | 源文悬浮字典弹窗可使用 WiktApi、FreeDictionaryAPI 或关闭。字典查询会保留原词大小写，拉丁词先查英文再回退到全语言查询，全语言结果会按可能的源语言排序，并本地缓存归一化结果。 |
-| 记录 | 源文侧稳定悬浮 2 秒后记录词汇命中、聚合次数、最近上下文、URL 和事件历史。 |
+| 字典 | 源文悬浮字典弹窗可使用 WiktApi、FreeDictionaryAPI 或关闭。源文侧查词使用指针下方本地切分出的源词，即使模型 alignment 把多个 source spans 合成一组也不会查整组短语。字典查询会保留原词大小写，拉丁词先查英文再回退到全语言查询，全语言结果会按可能的源语言排序，并本地缓存归一化结果。 |
+| 记录 | 源文侧单词稳定悬浮 2 秒后记录词汇命中、聚合次数、最近上下文、URL 和事件历史。 |
 | 导出 | Records CSV 导出包含 UTF-8 BOM，并中和来自不可信页面文本的电子表格公式前缀。 |
 | 诊断 | 页面内状态面板和 background diagnostics 会展示 skipped blocks、failed chunks、provider-output failure categories、alignment coverage，以及可选测试模式事件日志。 |
 | 界面语言 | 扩展界面跟随浏览器 UI 语言。默认 locale 为英文，并支持简体中文；这与 `Target Language` 相互独立。 |
@@ -162,8 +162,8 @@ Provider 请求细节：
 - 在同一文档中再次触发会关闭翻译并移除注入节点。
 - 导航到新文档后需要再次触发翻译；完整页面导航会重置上一页状态。
 - 悬浮源文 span 或译文 span 时，会高亮其对齐 counterpart。
-- 当存在合法 alignment 时，在源文 span 上稳定悬浮 2 秒会记录词汇。
-- 启用字典查询时，悬浮源文 span 会打开字典弹窗。
+- 翻译可用后，在源词上稳定悬浮 2 秒会记录词汇。
+- 启用字典查询时，悬浮源词会打开字典弹窗；如果该词存在模型 alignment，目标侧高亮仍跟随该 alignment。
 - 在 Options 页面可以搜索、排序和导出词汇记录。
 - 排查问题时，可在 Options 页面开启 `Test Mode`，复现后刷新或将 Test Logs 面板导出为 JSON。
 - 通过浏览器 UI 语言在英文和简体中文扩展界面之间切换。`Target Language` 只用于控制译文输出。
