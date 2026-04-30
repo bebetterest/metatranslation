@@ -6,6 +6,7 @@ import type {
   RecordsQueryResponse,
   SettingsGetResponse,
   SettingsSaveResponse,
+  TestLogsQueryResponse,
 } from '../lib/messages';
 import { getUiLocale, getUiMessage } from '../lib/i18n';
 import {
@@ -13,6 +14,7 @@ import {
   type ExtensionSettings,
   type RecordSortMode,
   type RecordsExportRow,
+  type TestLogEntry,
   type WordRecord,
 } from '../lib/types';
 
@@ -25,6 +27,12 @@ const recordsBody = getElement<HTMLTableSectionElement>('records-body');
 const settingsStatus = getElement<HTMLDivElement>('settings-status');
 const recordsStatus = getElement<HTMLSpanElement>('records-status');
 const recordCount = getElement<HTMLSpanElement>('record-count');
+const testLogsStatus = getElement<HTMLSpanElement>('test-logs-status');
+const testLogCount = getElement<HTMLSpanElement>('test-log-count');
+const testLogsBody = getElement<HTMLTableSectionElement>('test-logs-body');
+const refreshTestLogsButton = getElement<HTMLButtonElement>('refresh-test-logs');
+const exportTestLogsButton = getElement<HTMLButtonElement>('export-test-logs');
+const clearTestLogsButton = getElement<HTMLButtonElement>('clear-test-logs');
 
 const baseUrlInput = getElement<HTMLInputElement>('base-url');
 const apiKeyInput = getElement<HTMLInputElement>('api-key');
@@ -36,6 +44,7 @@ const requestConcurrencyInput = getElement<HTMLInputElement>('request-concurrenc
 const contextWindowCharsInput = getElement<HTMLInputElement>('context-window-chars');
 const translationRetryCountInput = getElement<HTMLInputElement>('translation-retry-count');
 const tolerantProviderOutputInput = getElement<HTMLInputElement>('tolerant-provider-output');
+const testModeInput = getElement<HTMLInputElement>('test-mode');
 const dictionaryProviderInput = getElement<HTMLSelectElement>('dictionary-provider');
 const dictionaryHoverHoldMsInput = getElement<HTMLInputElement>('dictionary-hover-hold-ms');
 
@@ -47,8 +56,17 @@ const dateFormatter = new Intl.DateTimeFormat(uiLocale, {
   hour: '2-digit',
   minute: '2-digit',
 });
+const logDateFormatter = new Intl.DateTimeFormat(uiLocale, {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+});
 
 let currentRecords: WordRecord[] = [];
+let currentTestLogs: TestLogEntry[] = [];
 let searchTimer: number | null = null;
 
 void initialize();
@@ -56,6 +74,7 @@ void initialize();
 async function initialize(): Promise<void> {
   applyLocalizedText();
   await loadSettings();
+  await loadTestLogs();
   await loadRecords();
 
   settingsForm.addEventListener('submit', (event) => {
@@ -82,6 +101,18 @@ async function initialize(): Promise<void> {
 
   exportButton.addEventListener('click', () => {
     exportCsv(currentRecords);
+  });
+
+  refreshTestLogsButton.addEventListener('click', () => {
+    void loadTestLogs();
+  });
+
+  exportTestLogsButton.addEventListener('click', () => {
+    exportTestLogs(currentTestLogs);
+  });
+
+  clearTestLogsButton.addEventListener('click', () => {
+    void clearTestLogs();
   });
 }
 
@@ -118,6 +149,7 @@ async function saveSettings(): Promise<void> {
       dictionaryEdition: DEFAULT_SETTINGS.dictionaryEdition,
       dictionaryHoverHoldMs: Number(dictionaryHoverHoldMsInput.value),
       tolerantProviderOutput: tolerantProviderOutputInput.checked,
+      testMode: testModeInput.checked,
     };
 
     const response = await sendMessage<SettingsSaveResponse>({
@@ -126,6 +158,7 @@ async function saveSettings(): Promise<void> {
     });
 
     fillSettings(response.settings);
+    await loadTestLogs();
     setText(settingsStatus, getUiMessage('settingsSaved'));
   } catch (error) {
     setText(settingsStatus, getErrorMessage(error));
@@ -152,6 +185,22 @@ async function loadRecords(): Promise<void> {
   }
 }
 
+async function loadTestLogs(): Promise<void> {
+  setText(testLogsStatus, getUiMessage('testLogsLoading'));
+
+  try {
+    const response = await sendMessage<TestLogsQueryResponse>({
+      type: 'test-logs:query',
+    });
+
+    currentTestLogs = response.logs;
+    renderTestLogs(response.logs);
+    setText(testLogsStatus, '');
+  } catch (error) {
+    setText(testLogsStatus, getErrorMessage(error));
+  }
+}
+
 function fillSettings(settings: ExtensionSettings): void {
   baseUrlInput.value = settings.baseUrl;
   apiKeyInput.value = settings.apiKey;
@@ -165,6 +214,35 @@ function fillSettings(settings: ExtensionSettings): void {
   dictionaryProviderInput.value = settings.dictionaryProvider;
   dictionaryHoverHoldMsInput.value = String(settings.dictionaryHoverHoldMs);
   tolerantProviderOutputInput.checked = settings.tolerantProviderOutput;
+  testModeInput.checked = settings.testMode;
+}
+
+function renderTestLogs(logs: TestLogEntry[]): void {
+  testLogCount.textContent = getUiMessage('testLogCount', String(logs.length));
+  testLogsBody.replaceChildren();
+
+  if (logs.length === 0) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 5;
+    cell.className = 'empty';
+    cell.textContent = getUiMessage('testLogsEmpty');
+    row.append(cell);
+    testLogsBody.append(row);
+    return;
+  }
+
+  for (const log of logs.slice().reverse()) {
+    const row = document.createElement('tr');
+    row.append(
+      buildCell(logDateFormatter.format(new Date(log.timestamp)), 'cell-muted'),
+      buildCell(log.level.toUpperCase(), `cell-log-level cell-log-${log.level}`),
+      buildCell(log.source, 'cell-muted'),
+      buildCell(log.event, 'cell-word'),
+      buildDetailsCell(log),
+    );
+    testLogsBody.append(row);
+  }
 }
 
 function renderRecords(records: WordRecord[]): void {
@@ -205,6 +283,23 @@ function buildCell(content: string, className = ''): HTMLTableCellElement {
   if (className) {
     cell.className = className;
   }
+  return cell;
+}
+
+function buildDetailsCell(log: TestLogEntry): HTMLTableCellElement {
+  const cell = document.createElement('td');
+  const page = document.createElement('div');
+  page.className = 'cell-url';
+  page.textContent = log.pageUrl;
+
+  const details = document.createElement('pre');
+  details.className = 'log-details';
+  details.textContent = JSON.stringify(log.details, null, 2);
+
+  if (log.pageUrl) {
+    cell.append(page);
+  }
+  cell.append(details);
   return cell;
 }
 
@@ -264,6 +359,39 @@ function exportCsv(records: WordRecord[]): void {
   setText(recordsStatus, getUiMessage('recordsExported'));
 }
 
+function exportTestLogs(logs: TestLogEntry[]): void {
+  if (logs.length === 0) {
+    setText(testLogsStatus, getUiMessage('testLogsExportEmpty'));
+    return;
+  }
+
+  const blob = new Blob([JSON.stringify(logs, null, 2)], {
+    type: 'application/json;charset=utf-8',
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `metatranslation-test-logs-${new Date().toISOString().slice(0, 10)}.json`;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  setText(testLogsStatus, getUiMessage('testLogsExported'));
+}
+
+async function clearTestLogs(): Promise<void> {
+  setText(testLogsStatus, getUiMessage('testLogsClearing'));
+
+  try {
+    await sendMessage<{ ok: true }>({
+      type: 'test-logs:clear',
+    });
+    currentTestLogs = [];
+    renderTestLogs(currentTestLogs);
+    setText(testLogsStatus, getUiMessage('testLogsCleared'));
+  } catch (error) {
+    setText(testLogsStatus, getErrorMessage(error));
+  }
+}
+
 function applyLocalizedText(): void {
   document.documentElement.lang = uiLocale;
   for (const element of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
@@ -281,6 +409,7 @@ function applyLocalizedText(): void {
   }
 
   recordCount.textContent = getUiMessage('recordCount', '0');
+  testLogCount.textContent = getUiMessage('testLogCount', '0');
 }
 
 async function sendMessage<T>(message: object): Promise<T> {

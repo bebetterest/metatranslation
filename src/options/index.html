@@ -133,10 +133,61 @@
             </div>
           </section>
 
+          <section class="settings-section">
+            <div class="settings-section-heading">
+              <h3 data-i18n="diagnosticsSectionTitle">Diagnostics</h3>
+              <p data-i18n="diagnosticsSectionDescription">Enable local test logs while investigating extension behavior.</p>
+            </div>
+
+            <div class="settings-grid">
+              <label class="checkbox-label">
+                <input id="test-mode" name="testMode" type="checkbox" />
+                <span>
+                  <span data-i18n="testModeLabel">Test Mode</span>
+                  <small data-i18n="testModeHelp">When enabled, background and content runtime events are stored locally in a bounded log for troubleshooting. API keys are redacted.</small>
+                </span>
+              </label>
+            </div>
+          </section>
+
           <div class="form-actions">
             <button type="submit" class="primary" data-i18n="saveSettingsButton">Save Settings</button>
           </div>
         </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header records-header">
+          <div>
+            <h2 data-i18n="testLogsPanelTitle">Test Logs</h2>
+            <p data-i18n="testLogsPanelDescription">Logs are written only while Test Mode is enabled and stay on this device until cleared.</p>
+          </div>
+          <div class="toolbar">
+            <button id="refresh-test-logs" type="button" data-i18n="refreshTestLogsButton">Refresh Logs</button>
+            <button id="export-test-logs" type="button" class="primary" data-i18n="exportTestLogsButton">Export JSON</button>
+            <button id="clear-test-logs" type="button" data-i18n="clearTestLogsButton">Clear Logs</button>
+          </div>
+        </div>
+
+        <div class="summary">
+          <span id="test-log-count">Logs: 0</span>
+          <span id="test-logs-status" class="status"></span>
+        </div>
+
+        <div class="table-shell">
+          <table class="test-logs-table">
+            <thead>
+              <tr>
+                <th data-i18n="testLogTimeHeader">Time</th>
+                <th data-i18n="testLogLevelHeader">Level</th>
+                <th data-i18n="testLogSourceHeader">Source</th>
+                <th data-i18n="testLogEventHeader">Event</th>
+                <th data-i18n="testLogDetailsHeader">Details</th>
+              </tr>
+            </thead>
+            <tbody id="test-logs-body"></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="panel">

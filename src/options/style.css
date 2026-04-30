@@ -307,6 +307,39 @@ tbody tr:hover {
   max-width: 22rem;
 }
 
+.cell-log-level {
+  font-weight: 700;
+}
+
+.cell-log-debug {
+  color: #526067;
+}
+
+.cell-log-info {
+  color: #155e75;
+}
+
+.cell-log-warn {
+  color: #9a5b00;
+}
+
+.cell-log-error {
+  color: #b42318;
+}
+
+.test-logs-table {
+  min-width: 980px;
+}
+
+.log-details {
+  max-width: 38rem;
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #314047;
+  font: 0.82rem/1.55 ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+
 .empty {
   padding: 28px 16px;
   color: #607078;

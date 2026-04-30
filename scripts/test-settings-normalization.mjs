@@ -16,6 +16,7 @@ test('normalizes dirty settings from storage', () => {
     dictionaryEdition: ' fr ',
     dictionaryHoverHoldMs: 9999,
     tolerantProviderOutput: true,
+    testMode: true,
   });
 
   assert.equal(settings.baseUrl, 'https://provider.example/v1');
@@ -31,6 +32,7 @@ test('normalizes dirty settings from storage', () => {
   assert.equal(settings.dictionaryEdition, 'en');
   assert.equal(settings.dictionaryHoverHoldMs, 5000);
   assert.equal(settings.tolerantProviderOutput, true);
+  assert.equal(settings.testMode, true);
 });
 
 test('floors fractional parallel request settings', () => {
@@ -56,6 +58,7 @@ test('falls back when stored values have wrong types', () => {
     dictionaryEdition: ' ',
     dictionaryHoverHoldMs: '1000',
     tolerantProviderOutput: 'true',
+    testMode: 'true',
   });
 
   assert.equal(settings.baseUrl, 'https://openrouter.ai/api/v1');
@@ -71,6 +74,7 @@ test('falls back when stored values have wrong types', () => {
   assert.equal(settings.dictionaryEdition, 'en');
   assert.equal(settings.dictionaryHoverHoldMs, 1000);
   assert.equal(settings.tolerantProviderOutput, true);
+  assert.equal(settings.testMode, false);
 });
 
 test('allows zero retry count to disable retry passes', () => {

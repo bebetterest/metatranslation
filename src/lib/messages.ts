@@ -5,6 +5,8 @@ import type {
   RecordHitPayload,
   RecordsQuery,
   RecordsQueryResult,
+  TestLogAddPayload,
+  TestLogsQueryResult,
   TranslationRequest,
   TranslationResponse,
 } from './types';
@@ -37,6 +39,12 @@ export type TabToggleMessage = {
   type: 'tab:toggle';
   tabId: number;
 };
+export type TestLogAddMessage = {
+  type: 'test-log:add';
+  payload: TestLogAddPayload;
+};
+export type TestLogsQueryMessage = { type: 'test-logs:query' };
+export type TestLogsClearMessage = { type: 'test-logs:clear' };
 
 export type RuntimeInboundMessage = RuntimePingMessage | RuntimeToggleMessage;
 
@@ -48,7 +56,10 @@ export type BackgroundMessage =
   | RecordHitMessage
   | RecordsQueryMessage
   | DictionaryLookupMessage
-  | TabToggleMessage;
+  | TabToggleMessage
+  | TestLogAddMessage
+  | TestLogsQueryMessage
+  | TestLogsClearMessage;
 
 export interface RuntimeStatusResponse {
   ok: true;
@@ -67,6 +78,8 @@ export interface RecordsQueryResponse extends RecordsQueryResult {}
 
 export interface DictionaryLookupResponse extends DictionaryLookupResult {}
 
+export interface TestLogsQueryResponse extends TestLogsQueryResult {}
+
 export interface ErrorResponse {
   error: string;
 }
@@ -78,5 +91,6 @@ export type BackgroundResponse =
   | TranslationResponse
   | RecordsQueryResponse
   | DictionaryLookupResponse
+  | TestLogsQueryResponse
   | { ok: true }
   | ErrorResponse;

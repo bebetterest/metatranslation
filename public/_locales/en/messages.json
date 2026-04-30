@@ -171,9 +171,93 @@
     "message": "How long the dictionary stays open while moving from source text to the popup. Default is 1000ms; 0 closes immediately.",
     "description": "Dictionary hover hold setting help text."
   },
+  "diagnosticsSectionTitle": {
+    "message": "Diagnostics",
+    "description": "Diagnostics settings section title."
+  },
+  "diagnosticsSectionDescription": {
+    "message": "Enable local test logs while investigating extension behavior.",
+    "description": "Diagnostics settings section description."
+  },
+  "testModeLabel": {
+    "message": "Test Mode",
+    "description": "Test mode setting label."
+  },
+  "testModeHelp": {
+    "message": "When enabled, background and content runtime events are stored locally in a bounded log for troubleshooting. API keys are redacted.",
+    "description": "Test mode setting help text."
+  },
   "saveSettingsButton": {
     "message": "Save Settings",
     "description": "Save settings button."
+  },
+  "testLogsPanelTitle": {
+    "message": "Test Logs",
+    "description": "Test logs panel title."
+  },
+  "testLogsPanelDescription": {
+    "message": "Logs are written only while Test Mode is enabled and stay on this device until cleared.",
+    "description": "Test logs panel description."
+  },
+  "refreshTestLogsButton": {
+    "message": "Refresh Logs",
+    "description": "Refresh test logs button."
+  },
+  "exportTestLogsButton": {
+    "message": "Export JSON",
+    "description": "Export test logs button."
+  },
+  "clearTestLogsButton": {
+    "message": "Clear Logs",
+    "description": "Clear test logs button."
+  },
+  "testLogCount": {
+    "message": "Logs: $1",
+    "description": "Test log count summary."
+  },
+  "testLogsLoading": {
+    "message": "Loading logs...",
+    "description": "Test logs loading status."
+  },
+  "testLogsEmpty": {
+    "message": "No test logs recorded.",
+    "description": "Empty test logs table message."
+  },
+  "testLogsExportEmpty": {
+    "message": "No logs to export",
+    "description": "Empty test log export status."
+  },
+  "testLogsExported": {
+    "message": "Test logs exported",
+    "description": "Test log export complete status."
+  },
+  "testLogsClearing": {
+    "message": "Clearing logs...",
+    "description": "Test logs clearing status."
+  },
+  "testLogsCleared": {
+    "message": "Test logs cleared",
+    "description": "Test logs cleared status."
+  },
+  "testLogTimeHeader": {
+    "message": "Time",
+    "description": "Test logs table time header."
+  },
+  "testLogLevelHeader": {
+    "message": "Level",
+    "description": "Test logs table level header."
+  },
+  "testLogSourceHeader": {
+    "message": "Source",
+    "description": "Test logs table source header."
+  },
+  "testLogEventHeader": {
+    "message": "Event",
+    "description": "Test logs table event header."
+  },
+  "testLogDetailsHeader": {
+    "message": "Details",
+    "description": "Test logs table details header."
   },
   "recordsPanelTitle": {
     "message": "Vocabulary Records",

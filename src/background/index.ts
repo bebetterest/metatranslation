@@ -2,6 +2,7 @@ import { contentRuntimeBootstrap } from '../content/injected';
 import type { BackgroundMessage, BackgroundResponse, RuntimeInboundMessage } from '../lib/messages';
 import type {
   ExtensionSettings,
+  TestLogAddPayload,
   TranslationBlockRequest,
   TranslationRequest,
   TranslationResultBlock,
@@ -10,7 +11,13 @@ import { getUiMessage } from '../lib/i18n';
 import { getSettings, saveSettings } from '../lib/settings';
 import { getCachedTranslation, putCachedTranslation, queryWordRecords, recordWordHit } from './db';
 import { lookupDictionary } from './dictionary';
+import { configureLocalOllamaCorsBypass } from './localOllamaCors';
 import { translateBlocks } from './openai';
+import {
+  appendTestLogForSettings,
+  clearTestLogs,
+  queryTestLogs,
+} from './testLogs';
 
 const CONTEXT_MENU_ID = 'toggle-dual-line-translation';
 const CONTEXT_MENU_DEFAULT_TITLE = getUiMessage('contextMenuTranslatePage');
@@ -32,20 +39,20 @@ let enabledTabIdsLoaded = false;
 let enabledTabIdsSaveQueue = Promise.resolve();
 
 chrome.runtime.onInstalled.addListener(() => {
-  void ensureContextMenu().catch((error: unknown) => {
-    console.error('[metatranslation]', error);
+  void Promise.all([ensureContextMenu(), configureSavedProviderRequestRules()]).catch((error: unknown) => {
+    reportBackgroundError('runtime_installed_setup_failed', error);
   });
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  void ensureContextMenu().catch((error: unknown) => {
-    console.error('[metatranslation]', error);
+  void Promise.all([ensureContextMenu(), configureSavedProviderRequestRules()]).catch((error: unknown) => {
+    reportBackgroundError('runtime_startup_setup_failed', error);
   });
 });
 
 chrome.action.onClicked.addListener((tab) => {
   void handleActionClick(tab).catch(async (error: unknown) => {
-    console.error('[metatranslation]', error);
+    reportBackgroundError('action_click_failed', error);
     if (tab.id) {
       await chrome.action.setBadgeBackgroundColor({
         tabId: tab.id,
@@ -65,7 +72,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   }
 
   void handleActionClick(tab).catch(async (error: unknown) => {
-    console.error('[metatranslation]', error);
+    reportBackgroundError('context_menu_click_failed', error);
     if (tab.id) {
       await chrome.action.setBadgeBackgroundColor({
         tabId: tab.id,
@@ -81,19 +88,19 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   void handleTabUpdated(tabId, changeInfo, tab).catch((error: unknown) => {
-    console.error('[metatranslation]', error);
+    reportBackgroundError('tab_update_failed', error);
   });
 });
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
   void updateContextMenuForTabId(activeInfo.tabId).catch((error: unknown) => {
-    console.error('[metatranslation]', error);
+    reportBackgroundError('tab_activation_menu_update_failed', error);
   });
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   void setTabEnabled(tabId, false).catch((error: unknown) => {
-    console.error('[metatranslation]', error);
+    reportBackgroundError('tab_removed_state_update_failed', error);
   });
 });
 
@@ -103,24 +110,25 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
   }
 
   void updateContextMenuForFocusedWindow(windowId).catch((error: unknown) => {
-    console.error('[metatranslation]', error);
+    reportBackgroundError('window_focus_menu_update_failed', error);
   });
 });
 
 contextMenusApi.onShown?.addListener((_info, tab) => {
   void updateContextMenuForTab(tab).catch((error: unknown) => {
-    console.error('[metatranslation]', error);
+    reportBackgroundError('context_menu_shown_update_failed', error);
   });
 });
 
 chrome.runtime.onMessage.addListener((message: BackgroundMessage, sender, sendResponse) => {
   void handleMessage(message, sender)
     .then((response) => sendResponse(response))
-    .catch((error: unknown) =>
+    .catch((error: unknown) => {
+      reportBackgroundError(`message_${message?.type ?? 'unknown'}_failed`, error);
       sendResponse({
         error: error instanceof Error ? error.message : 'Unknown extension error.',
-      }),
-    );
+      });
+    });
 
   return true;
 });
@@ -135,6 +143,18 @@ async function handleActionClick(tab: chrome.tabs.Tab): Promise<void> {
 
   const settings = await getSettings();
   if (!hasUsableSettings(settings)) {
+    await appendTestLogForSettings(settings, {
+      level: 'warn',
+      source: 'background',
+      event: 'translation_config_required',
+      pageUrl: tab.url,
+      details: {
+        tabId,
+        hasBaseUrl: Boolean(settings.baseUrl.trim()),
+        hasApiKey: Boolean(settings.apiKey.trim()),
+        hasModel: Boolean(settings.model.trim()),
+      },
+    });
     await chrome.runtime.openOptionsPage();
     await chrome.action.setBadgeBackgroundColor({
       tabId,
@@ -153,6 +173,15 @@ async function handleActionClick(tab: chrome.tabs.Tab): Promise<void> {
   await setTabEnabled(tabId, response.enabled);
   await updateBadge(tabId, response.enabled);
   await updateContextMenuForTab(tab, response.enabled, true);
+  await appendTestLogForSettings(settings, {
+    level: 'info',
+    source: 'background',
+    event: response.enabled ? 'translation_enabled' : 'translation_disabled',
+    pageUrl: tab.url,
+    details: {
+      tabId,
+    },
+  });
 }
 
 async function handleMessage(
@@ -161,29 +190,98 @@ async function handleMessage(
 ): Promise<BackgroundResponse> {
   switch (message.type) {
     case 'runtime:ready':
+      await appendTestLogIfEnabled({
+        level: 'debug',
+        source: 'background',
+        event: 'content_runtime_ready',
+        pageUrl: message.href,
+        details: {},
+      });
       return { ok: true };
     case 'settings:get':
       return { settings: await getSettings() };
-    case 'settings:save':
-      return { settings: await saveSettings(message.payload) };
+    case 'settings:save': {
+      const settings = await saveSettings(message.payload);
+      await configureLocalOllamaCorsBypass(settings.baseUrl);
+      await appendTestLogForSettings(settings, {
+        level: 'info',
+        source: 'background',
+        event: 'settings_saved',
+        details: {
+          baseUrl: settings.baseUrl,
+          model: settings.model,
+          targetLang: settings.targetLang,
+          requestChunkSize: settings.requestChunkSize,
+          requestConcurrency: settings.requestConcurrency,
+          contextWindowChars: settings.contextWindowChars,
+          translationRetryCount: settings.translationRetryCount,
+          tolerantProviderOutput: settings.tolerantProviderOutput,
+          dictionaryProvider: settings.dictionaryProvider,
+          testMode: settings.testMode,
+        },
+      });
+      return { settings };
+    }
     case 'translation:translate-blocks':
       return translateBlocksWithCache(await getSettings(), message.payload);
     case 'record:hover-hit':
       await recordWordHit(message.payload);
+      await appendTestLogIfEnabled({
+        level: 'info',
+        source: 'background',
+        event: 'word_record_saved',
+        pageUrl: message.payload.pageUrl,
+        details: {
+          normalizedWord: message.payload.normalizedWord,
+          sourceLang: message.payload.sourceLang,
+          targetLang: message.payload.targetLang,
+        },
+      });
       return { ok: true };
     case 'records:query':
       return {
         records: await queryWordRecords(message.payload),
       };
-    case 'dictionary:lookup':
-      return lookupDictionary(await getSettings(), message.payload);
+    case 'dictionary:lookup': {
+      const settings = await getSettings();
+      const result = await lookupDictionary(settings, message.payload);
+      await appendTestLogForSettings(settings, {
+        level: 'debug',
+        source: 'background',
+        event: 'dictionary_lookup_completed',
+        details: {
+          provider: settings.dictionaryProvider,
+          word: message.payload.word,
+          sourceLang: message.payload.sourceLang,
+          targetLang: message.payload.targetLang,
+          entries: result.entries.length,
+        },
+      });
+      return result;
+    }
     case 'tab:toggle': {
       await ensureRuntimeInjected(message.tabId);
       const response = await sendRuntimeMessage(message.tabId, { type: 'runtime:toggle' });
       await setTabEnabled(message.tabId, response.enabled);
       await updateBadge(message.tabId, response.enabled);
+      await appendTestLogIfEnabled({
+        level: 'info',
+        source: 'background',
+        event: response.enabled ? 'translation_enabled' : 'translation_disabled',
+        details: {
+          tabId: message.tabId,
+        },
+      });
       return response;
     }
+    case 'test-log:add':
+      await appendTestLogForSettings(await getSettings(), message.payload);
+      return { ok: true };
+    case 'test-logs:query':
+      return { logs: await queryTestLogs() };
+    case 'test-logs:clear':
+      await clearTestLogs();
+      return { ok: true };
     default:
       return assertNever(message);
   }
@@ -285,6 +383,8 @@ async function translateBlocksWithCache(
   settings: ExtensionSettings,
   request: TranslationRequest,
 ): Promise<BackgroundResponse> {
+  await configureLocalOllamaCorsBypass(settings.baseUrl);
+
   const cachedResults = new Map<string, TranslationResultBlock>();
   const uncachedBlocks: TranslationRequest['blocks'] = [];
 
@@ -306,6 +406,23 @@ async function translateBlocksWithCache(
 
     uncachedBlocks.push(block);
   }
+
+  await appendTestLogForSettings(settings, {
+    level: 'debug',
+    source: 'background',
+    event: 'translation_cache_checked',
+    pageUrl: request.pageUrl,
+    details: {
+      requestedBlocks: request.blocks.length,
+      cachedBlocks: cachedResults.size,
+      uncachedBlocks: uncachedBlocks.length,
+      sourceLang: request.sourceLang ?? 'auto',
+      targetLang: request.targetLang,
+      model: settings.model,
+      baseUrl: settings.baseUrl,
+      tolerantProviderOutput: settings.tolerantProviderOutput,
+    },
+  });
 
   if (uncachedBlocks.length > 0) {
     const translated = await translateBlocks(settings, {
@@ -332,6 +449,20 @@ async function translateBlocksWithCache(
       await putCachedTranslation(cacheKey, block);
     }
 
+    await appendTestLogForSettings(settings, {
+      level: diagnostics?.outputFailures ? 'warn' : 'info',
+      source: 'background',
+      event: 'translation_completed',
+      pageUrl: request.pageUrl,
+      details: {
+        requestedBlocks: request.blocks.length,
+        cachedBlocks: cachedResults.size - translated.blocks.length,
+        providerBlocks: uncachedBlocks.length,
+        returnedBlocks: translated.blocks.length,
+        diagnostics,
+      },
+    });
+
     return {
       blocks: request.blocks
         .map((block) => cachedResults.get(block.id))
@@ -339,6 +470,17 @@ async function translateBlocksWithCache(
       diagnostics,
     };
   }
+
+  await appendTestLogForSettings(settings, {
+    level: 'info',
+    source: 'background',
+    event: 'translation_served_from_cache',
+    pageUrl: request.pageUrl,
+    details: {
+      requestedBlocks: request.blocks.length,
+      returnedBlocks: cachedResults.size,
+    },
+  });
 
   return {
     blocks: request.blocks
@@ -385,6 +527,10 @@ function hasUsableSettings(settings: ExtensionSettings): boolean {
   return Boolean(settings.baseUrl.trim() && settings.apiKey.trim() && settings.model.trim());
 }
 
+async function configureSavedProviderRequestRules(): Promise<void> {
+  await configureLocalOllamaCorsBypass((await getSettings()).baseUrl);
+}
+
 async function updateBadge(tabId: number, enabled: boolean): Promise<void> {
   await chrome.action.setBadgeBackgroundColor({
     tabId,
@@ -400,6 +546,38 @@ function sleep(durationMs: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, durationMs);
   });
+}
+
+function reportBackgroundError(event: string, error: unknown): void {
+  console.error('[metatranslation]', error);
+  void appendTestLogIfEnabled({
+    level: 'error',
+    source: 'background',
+    event,
+    details: errorToLogDetails(error),
+  });
+}
+
+async function appendTestLogIfEnabled(payload: TestLogAddPayload): Promise<void> {
+  try {
+    await appendTestLogForSettings(await getSettings(), payload);
+  } catch {
+    // Logging must not interfere with extension control flow.
+  }
+}
+
+function errorToLogDetails(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack ?? '',
+    };
+  }
+
+  return {
+    message: String(error),
+  };
 }
 
 function assertNever(value: never): never {

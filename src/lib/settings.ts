@@ -49,6 +49,7 @@ export function normalizeSettings(value: Partial<ExtensionSettings> | Record<str
       value.tolerantProviderOutput,
       DEFAULT_SETTINGS.tolerantProviderOutput,
     ),
+    testMode: normalizeBoolean(value.testMode, DEFAULT_SETTINGS.testMode),
   };
 }
 

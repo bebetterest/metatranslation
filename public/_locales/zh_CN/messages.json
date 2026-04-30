@@ -171,9 +171,93 @@
     "message": "鼠标从源文移动到字典弹窗时，弹窗保持打开的时间。默认 1000ms；0 表示立即关闭。",
     "description": "字典悬浮保活设置说明。"
   },
+  "diagnosticsSectionTitle": {
+    "message": "诊断",
+    "description": "诊断设置分组标题。"
+  },
+  "diagnosticsSectionDescription": {
+    "message": "排查扩展行为时启用本地测试日志。",
+    "description": "诊断设置分组说明。"
+  },
+  "testModeLabel": {
+    "message": "测试模式",
+    "description": "测试模式设置标签。"
+  },
+  "testModeHelp": {
+    "message": "开启后，background 和 content runtime 事件会写入有上限的本地日志，便于排查问题。API keys 会被脱敏。",
+    "description": "测试模式设置说明。"
+  },
   "saveSettingsButton": {
     "message": "保存设置",
     "description": "保存设置按钮。"
+  },
+  "testLogsPanelTitle": {
+    "message": "测试日志",
+    "description": "测试日志面板标题。"
+  },
+  "testLogsPanelDescription": {
+    "message": "只有开启测试模式时才会写入日志；日志保存在本设备，直到手动清空。",
+    "description": "测试日志面板说明。"
+  },
+  "refreshTestLogsButton": {
+    "message": "刷新日志",
+    "description": "刷新测试日志按钮。"
+  },
+  "exportTestLogsButton": {
+    "message": "导出 JSON",
+    "description": "导出测试日志按钮。"
+  },
+  "clearTestLogsButton": {
+    "message": "清空日志",
+    "description": "清空测试日志按钮。"
+  },
+  "testLogCount": {
+    "message": "日志：$1 条",
+    "description": "测试日志数量摘要。"
+  },
+  "testLogsLoading": {
+    "message": "加载日志中...",
+    "description": "测试日志加载状态。"
+  },
+  "testLogsEmpty": {
+    "message": "尚未记录测试日志。",
+    "description": "测试日志为空提示。"
+  },
+  "testLogsExportEmpty": {
+    "message": "没有可导出的日志",
+    "description": "空测试日志导出状态。"
+  },
+  "testLogsExported": {
+    "message": "测试日志已导出",
+    "description": "测试日志导出完成状态。"
+  },
+  "testLogsClearing": {
+    "message": "正在清空日志...",
+    "description": "测试日志清理状态。"
+  },
+  "testLogsCleared": {
+    "message": "测试日志已清空",
+    "description": "测试日志清空状态。"
+  },
+  "testLogTimeHeader": {
+    "message": "时间",
+    "description": "测试日志表格时间表头。"
+  },
+  "testLogLevelHeader": {
+    "message": "级别",
+    "description": "测试日志表格级别表头。"
+  },
+  "testLogSourceHeader": {
+    "message": "来源",
+    "description": "测试日志表格来源表头。"
+  },
+  "testLogEventHeader": {
+    "message": "事件",
+    "description": "测试日志表格事件表头。"
+  },
+  "testLogDetailsHeader": {
+    "message": "详情",
+    "description": "测试日志表格详情表头。"
   },
   "recordsPanelTitle": {
     "message": "词频记录",

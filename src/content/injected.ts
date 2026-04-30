@@ -147,7 +147,10 @@ export function contentRuntimeBootstrap() {
     dictionaryEdition: string;
     dictionaryHoverHoldMs: number;
     tolerantProviderOutput: boolean;
+    testMode: boolean;
   };
+
+  type TestLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
   type DictionaryEntry = {
     provider: 'wiktapi' | 'freedictionaryapi';
@@ -286,6 +289,15 @@ export function contentRuntimeBootstrap() {
     const version = ++lifecycleVersion;
     settings = await getSettings();
     runtimeStats = createRuntimeStats();
+    logTestEvent('info', 'runtime_enabled', {
+      targetLang: settings.targetLang,
+      requestChunkSize: settings.requestChunkSize,
+      requestConcurrency: settings.requestConcurrency,
+      contextWindowChars: settings.contextWindowChars,
+      translationRetryCount: settings.translationRetryCount,
+      tolerantProviderOutput: settings.tolerantProviderOutput,
+      dictionaryProvider: settings.dictionaryProvider,
+    });
     resetTranslationQueue();
     ensureStyle();
     ensureHighlightLayer();
@@ -309,6 +321,9 @@ export function contentRuntimeBootstrap() {
     }
 
     enabled = false;
+    logTestEvent('info', 'runtime_disabled', {
+      stats: runtimeStats,
+    });
     lifecycleVersion += 1;
     resetTranslationQueue();
     observer?.disconnect();
@@ -444,6 +459,10 @@ export function contentRuntimeBootstrap() {
     const roots = Array.from(pendingRoots);
     dirtyBlockIds.clear();
     pendingRoots.clear();
+    logTestEvent('debug', 'mutation_flush_started', {
+      dirtyBlockIds: dirtyIds.length,
+      pendingRoots: roots.length,
+    });
 
     const dirtyBlocks: BlockState[] = [];
 
@@ -540,10 +559,16 @@ export function contentRuntimeBootstrap() {
 
     if (newBlocks.length > 0) {
       runtimeStats.discovered += newBlocks.length;
+      logTestEvent('debug', 'text_blocks_discovered', {
+        newBlocks: newBlocks.length,
+        totalDiscovered: runtimeStats.discovered,
+        registeredBlocks: blocksById.size,
+      });
       updateStatusPanel(
         getUiMessage('statusFoundBlocksTranslating', String(runtimeStats.discovered)),
       );
     } else if (blocksById.size === 0) {
+      logTestEvent('info', 'text_blocks_not_found', {});
       updateStatusPanel(getUiMessage('statusNoBlocks'));
     }
 
@@ -569,6 +594,12 @@ export function contentRuntimeBootstrap() {
     const requestChunkSize = normalizePositiveInteger(settings.requestChunkSize, 1);
     const requestConcurrency = normalizePositiveInteger(settings.requestConcurrency, 64);
     runtimeStats.requested += states.length;
+    logTestEvent('info', 'translation_requested', {
+      blocks: states.length,
+      requestChunkSize,
+      requestConcurrency,
+      contextWindowChars,
+    });
     updateStatusPanel(buildStatusText(getUiMessage('statusTranslatingPrefix')));
 
     translationQueue = translationQueue
@@ -640,9 +671,21 @@ export function contentRuntimeBootstrap() {
               runtimeStats.lastError = truncateStatusText(response.diagnostics.lastOutputError);
             }
 
+            logTestEvent(response.diagnostics?.outputFailures ? 'warn' : 'debug', 'translation_chunk_completed', {
+              chunkIndex,
+              requestedBlocks: stateChunk.length,
+              returnedBlocks: response.blocks.length,
+              missingBlocks: missingCount,
+              diagnostics: response.diagnostics ?? null,
+            });
             applyChunkTranslations(stateChunk, response.blocks, snapshot);
           } catch (error) {
             runtimeStats.failed += stateChunk.length;
+            logTestEvent('error', 'translation_chunk_failed', {
+              chunkIndex,
+              requestedBlocks: stateChunk.length,
+              ...errorToLogDetails(error),
+            });
             reportRuntimeError(error);
           }
         }
@@ -702,6 +745,12 @@ export function contentRuntimeBootstrap() {
       runtimeStats.translated += 1;
     }
 
+    logTestEvent(runtimeStats.skipped > 0 ? 'warn' : 'debug', 'translation_rendered', {
+      chunkBlocks: states.length,
+      translatedTotal: runtimeStats.translated,
+      skippedTotal: runtimeStats.skipped,
+      failedTotal: runtimeStats.failed,
+    });
     updateStatusPanel(buildStatusText(getUiMessage('statusTranslationUpdatedPrefix')));
   }
 
@@ -1764,10 +1813,20 @@ export function contentRuntimeBootstrap() {
 
     const cached = dictionaryResultCache.get(lookupKey);
     if (cached) {
+      logTestEvent('debug', 'dictionary_cache_hit', {
+        provider: settings.dictionaryProvider,
+        sourceLang: block.translation.sourceLang,
+        targetLang: settings.targetLang,
+      });
       renderDictionaryResult(cached, block, alignmentId);
       return;
     }
 
+    logTestEvent('debug', 'dictionary_lookup_requested', {
+      provider: settings.dictionaryProvider,
+      sourceLang: block.translation.sourceLang,
+      targetLang: settings.targetLang,
+    });
     void sendMessageToBackground<DictionaryLookupResult>({
       type: 'dictionary:lookup',
       payload: {
@@ -1781,12 +1840,19 @@ export function contentRuntimeBootstrap() {
         if (requestId !== dictionaryRequestSerial || activeDictionarySignature !== signature) {
           return;
         }
+        logTestEvent('debug', 'dictionary_lookup_completed', {
+          provider: result.provider,
+          entries: result.entries.length,
+          sourceLang: result.sourceLang,
+          targetLang: result.targetLang,
+        });
         renderDictionaryResult(result, block, alignmentId);
       })
       .catch((error: unknown) => {
         if (requestId !== dictionaryRequestSerial || activeDictionarySignature !== signature) {
           return;
         }
+        logTestEvent('error', 'dictionary_lookup_failed', errorToLogDetails(error));
         renderDictionaryError(error, block, alignmentId);
       });
   }
@@ -2029,6 +2095,11 @@ export function contentRuntimeBootstrap() {
     }
 
     completedRecordSignature = signature;
+    logTestEvent('info', 'word_record_requested', {
+      normalizedWord,
+      sourceLang: block.translation.sourceLang,
+      targetLang: settings.targetLang,
+    });
 
     await sendMessageToBackground({
       type: 'record:hover-hit',
@@ -2042,6 +2113,11 @@ export function contentRuntimeBootstrap() {
         translatedSentence: collapseWhitespace(block.translation.translatedText),
         timestamp: Date.now(),
       },
+    });
+    logTestEvent('info', 'word_record_completed', {
+      normalizedWord,
+      sourceLang: block.translation.sourceLang,
+      targetLang: settings.targetLang,
     });
   }
 
@@ -2158,6 +2234,9 @@ export function contentRuntimeBootstrap() {
     }
 
     const version = ++lifecycleVersion;
+    logTestEvent('info', 'route_changed', {
+      href: location.href,
+    });
     resetTranslationQueue();
     clearHighlight();
     cleanupAllBlocks();
@@ -2413,6 +2492,27 @@ export function contentRuntimeBootstrap() {
     return response.settings;
   }
 
+  function logTestEvent(
+    level: TestLogLevel,
+    event: string,
+    details: Record<string, unknown>,
+  ): void {
+    if (!settings?.testMode) {
+      return;
+    }
+
+    void sendMessageToBackground({
+      type: 'test-log:add',
+      payload: {
+        level,
+        source: 'content',
+        event,
+        pageUrl: location.href,
+        details,
+      },
+    }).catch(() => undefined);
+  }
+
   async function sendMessageToBackground<TResponse>(message: object): Promise<TResponse> {
     const response = (await chrome.runtime.sendMessage(message)) as { error?: string } & TResponse;
     if (response?.error) {
@@ -2480,7 +2580,22 @@ export function contentRuntimeBootstrap() {
     const message = error instanceof Error ? error.message : String(error);
     runtimeStats.lastError = truncateStatusText(message);
     updateStatusPanel(buildStatusText(getUiMessage('statusTranslationErrorPrefix')));
+    logTestEvent('error', 'runtime_error', errorToLogDetails(error));
     console.error('[metatranslation]', error);
+  }
+
+  function errorToLogDetails(error: unknown): Record<string, unknown> {
+    if (error instanceof Error) {
+      return {
+        name: error.name,
+        message: error.message,
+        stack: error.stack ?? '',
+      };
+    }
+
+    return {
+      message: String(error),
+    };
   }
 
   function createRuntimeStats(): RuntimeStats {

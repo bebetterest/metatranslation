@@ -64,9 +64,11 @@ await test('sends generic reasoning none request body', async () => {
   );
   assert.equal(calls[0].headers.Authorization, 'Bearer test-key');
   assert.equal(calls[0].headers['HTTP-Referer'], undefined);
-  assert.match(calls[0].body.messages[1].content, /Output JSON:/);
+  assert.match(calls[0].body.messages[1].content, /Required output shape:/);
   assert.match(calls[0].body.messages[1].content, /Configured target language: zh-CN \(Chinese \/ Simplified Chinese\)/);
   assert.match(calls[0].body.messages[1].content, /same id as one Payload block/);
+  assert.match(calls[0].body.messages[1].content, /Copy id exactly from Payload/);
+  assert.match(calls[0].body.messages[1].content, /Do not return placeholder ids/);
   assert.match(calls[0].body.messages[1].content, /Do not split one input block into multiple output blocks/);
   assert.match(calls[0].body.messages[1].content, /Examples:/);
   assert.match(calls[0].body.messages[1].content, /format examples only/);
@@ -119,7 +121,7 @@ await test('sends generic reasoning none request body', async () => {
   assert.doesNotMatch(calls[0].body.messages[1].content, /alignmentId/);
   assert.doesNotMatch(calls[0].body.messages[1].content, /"start"/);
   assert.doesNotMatch(calls[0].body.messages[1].content, /"end"/);
-  assert.match(calls[0].body.messages[1].content, /"id":"block-id"/);
+  assert.doesNotMatch(calls[0].body.messages[1].content, /block-id/);
   assert.doesNotMatch(calls[0].body.messages[1].content, /"sourceLang"/);
   assert.equal(
     calls[0].body.messages[1].content.includes(String.fromCharCode(115, 111, 117, 114, 99, 101, 84, 111, 107, 101, 110)),
@@ -177,6 +179,53 @@ await test('keeps OpenRouter compatibility in headers only', async () => {
   assert.deepEqual(calls[0].body.reasoning, { effort: 'none' });
   assert.equal(calls[0].headers['HTTP-Referer'], 'https://codex.local');
   assert.equal(calls[0].headers['X-Title'], 'metatranslation');
+});
+
+await test('resolves local Ollama root URLs to the OpenAI-compatible v1 endpoint', async () => {
+  const calls = [];
+
+  await withMockFetch(
+    calls,
+    [
+      chatResponse(JSON.stringify(validPayload())),
+      chatResponse(JSON.stringify(validPayload())),
+      chatResponse(JSON.stringify(validPayload())),
+    ],
+    async () => {
+      await translateBlocks(
+        {
+          ...baseSettings,
+          baseUrl: 'http://127.0.0.1:11434',
+        },
+        baseRequest,
+      );
+      await translateBlocks(
+        {
+          ...baseSettings,
+          baseUrl: 'http://localhost:11434/v1',
+        },
+        baseRequest,
+      );
+      await translateBlocks(
+        {
+          ...baseSettings,
+          baseUrl: 'http://localhost:11434/v1/chat/completions',
+        },
+        baseRequest,
+      );
+    },
+  );
+
+  assert.deepEqual(
+    calls.map((call) => call.url),
+    [
+      'http://127.0.0.1:11434/v1/chat/completions',
+      'http://localhost:11434/v1/chat/completions',
+      'http://localhost:11434/v1/chat/completions',
+    ],
+  );
+  assert.equal(calls[0].headers['HTTP-Referer'], undefined);
+  assert.equal(calls[0].headers['X-Title'], undefined);
 });
 
 await test('strict retry recovers invalid alignments', async () => {
